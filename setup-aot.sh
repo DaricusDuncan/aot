@@ -55,9 +55,57 @@ get_command_link_display_dir() {
     fi
 }
 
+check_repo_freshness() {
+    if ! command -v git >/dev/null 2>&1; then
+        return 0
+    fi
+    if [ ! -d "$SCRIPT_DIR/.git" ]; then
+        return 0
+    fi
+
+    if ! git -C "$SCRIPT_DIR" fetch --quiet origin >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local behind
+    behind="$(git -C "$SCRIPT_DIR" rev-list --count HEAD..origin/main 2>/dev/null || true)"
+    if [[ "$behind" =~ ^[0-9]+$ ]] && [ "$behind" -gt 0 ]; then
+        echo -e "${YELLOW}⚠${NC} This checkout is ${behind} commit(s) behind origin/main."
+        echo -e "${YELLOW}⚠${NC} setup-aot.sh rebuilds the environment, but does not update repo files/assets."
+        echo -e "${CYAN}→${NC} Run: git pull --ff-only"
+    fi
+}
+
+diagnose_aot_shadowing() {
+    local expected_path="$1"
+    local active_path=""
+
+    active_path="$(command -v aot 2>/dev/null || true)"
+    if [ -z "$active_path" ]; then
+        echo -e "${YELLOW}⚠${NC} Could not resolve active 'aot' command in this shell."
+        return 0
+    fi
+
+    if [ "$active_path" != "$expected_path" ]; then
+        echo -e "${YELLOW}⚠${NC} Active aot command points to: $active_path"
+        echo -e "${YELLOW}⚠${NC} Expected this setup's command at: $expected_path"
+        echo -e "${CYAN}→${NC} Run: hash -r"
+        if [ -n "${SHELL_CONFIG:-}" ]; then
+            echo -e "${CYAN}→${NC} Then reload shell config: source $SHELL_CONFIG"
+        fi
+        if command -v which >/dev/null 2>&1; then
+            echo -e "${CYAN}→${NC} All visible aot commands:"
+            which -a aot | sed 's/^/    /'
+        fi
+    else
+        echo -e "${GREEN}✓${NC} Active aot command resolves to this setup: $active_path"
+    fi
+}
+
 echo ""
 echo -e "${CYAN}⚕ Aot Agent Setup${NC}"
 echo ""
+check_repo_freshness
 
 # ============================================================================
 # Install / locate uv
@@ -346,10 +394,11 @@ COMMAND_LINK_DIR="$(get_command_link_dir)"
 COMMAND_LINK_DISPLAY_DIR="$(get_command_link_display_dir)"
 mkdir -p "$COMMAND_LINK_DIR"
 ln -sf "$AOT_BIN" "$COMMAND_LINK_DIR/aot"
+export PATH="$COMMAND_LINK_DIR:$PATH"
 echo -e "${GREEN}✓${NC} Symlinked aot → $COMMAND_LINK_DISPLAY_DIR/aot"
+diagnose_aot_shadowing "$COMMAND_LINK_DIR/aot"
 
 if is_termux; then
-    export PATH="$COMMAND_LINK_DIR:$PATH"
     echo -e "${GREEN}✓${NC} $COMMAND_LINK_DISPLAY_DIR is already on PATH in Termux"
 else
     # Determine the appropriate shell config file
