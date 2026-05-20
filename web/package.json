@@ -5,6 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:frontend": "vite --host 127.0.0.1 --strictPort",
+    "dev:backend": "../scripts/dev-dashboard.sh start-backend",
+    "dev:all": "../scripts/dev-dashboard.sh start",
+    "dev:stop": "../scripts/dev-dashboard.sh stop",
+    "dev:status": "../scripts/dev-dashboard.sh status",
+    "dev:logs": "../scripts/dev-dashboard.sh logs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

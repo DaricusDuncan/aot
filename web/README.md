@@ -11,13 +11,23 @@ Browser-based dashboard for managing Aot Agent configuration, API keys, and moni
 ## Development
 
 ```bash
-# Start the backend API server
-cd ../
-python -m aot_cli.main web --no-open
+# One command: start backend + frontend
+./scripts/dev-dashboard.sh start
 
-# In another terminal, start the Vite dev server (with HMR + API proxy)
+# Check status / logs / stop
+./scripts/dev-dashboard.sh status
+./scripts/dev-dashboard.sh logs
+./scripts/dev-dashboard.sh stop
+```
+Alternative (two terminals):
+
+```bash
+# Terminal 1 (backend API server)
+aot dashboard --no-open
+
+# Terminal 2 (frontend with HMR + API proxy)
 cd web/
-npm run dev
+npm run dev:frontend
 ```
 
 The Vite dev server proxies `/api` requests to `http://127.0.0.1:9119` (the FastAPI backend).
