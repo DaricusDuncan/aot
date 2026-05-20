@@ -1,4 +1,4 @@
-"""Tests for hermes_constants module."""
+"""Tests for aot_constants module."""
 
 import os
 from pathlib import Path
@@ -6,67 +6,67 @@ from unittest.mock import patch
 
 import pytest
 
-import hermes_constants
-from hermes_constants import (
+import aot_constants
+from aot_constants import (
     VALID_REASONING_EFFORTS,
-    get_default_hermes_root,
+    get_default_aot_root,
     is_container,
     parse_reasoning_effort,
 )
 
 
-class TestGetDefaultHermesRoot:
-    """Tests for get_default_hermes_root() — Docker/custom deployment awareness."""
+class TestGetDefaultAotRoot:
+    """Tests for get_default_aot_root() — Docker/custom deployment awareness."""
 
-    def test_no_hermes_home_returns_native(self, tmp_path, monkeypatch):
-        """When HERMES_HOME is not set, returns ~/.hermes."""
-        monkeypatch.delenv("HERMES_HOME", raising=False)
+    def test_no_aot_home_returns_native(self, tmp_path, monkeypatch):
+        """When AOT_HOME is not set, returns ~/.aot."""
+        monkeypatch.delenv("AOT_HOME", raising=False)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
-        assert get_default_hermes_root() == tmp_path / ".hermes"
+        assert get_default_aot_root() == tmp_path / ".aot"
 
-    def test_hermes_home_is_native(self, tmp_path, monkeypatch):
-        """When HERMES_HOME = ~/.hermes, returns ~/.hermes."""
-        native = tmp_path / ".hermes"
+    def test_aot_home_is_native(self, tmp_path, monkeypatch):
+        """When AOT_HOME = ~/.aot, returns ~/.aot."""
+        native = tmp_path / ".aot"
         native.mkdir()
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
-        monkeypatch.setenv("HERMES_HOME", str(native))
-        assert get_default_hermes_root() == native
+        monkeypatch.setenv("AOT_HOME", str(native))
+        assert get_default_aot_root() == native
 
-    def test_hermes_home_is_profile(self, tmp_path, monkeypatch):
-        """When HERMES_HOME is a profile under ~/.hermes, returns ~/.hermes."""
-        native = tmp_path / ".hermes"
+    def test_aot_home_is_profile(self, tmp_path, monkeypatch):
+        """When AOT_HOME is a profile under ~/.aot, returns ~/.aot."""
+        native = tmp_path / ".aot"
         profile = native / "profiles" / "coder"
         profile.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
-        monkeypatch.setenv("HERMES_HOME", str(profile))
-        assert get_default_hermes_root() == native
+        monkeypatch.setenv("AOT_HOME", str(profile))
+        assert get_default_aot_root() == native
 
-    def test_hermes_home_is_docker(self, tmp_path, monkeypatch):
-        """When HERMES_HOME points outside ~/.hermes (Docker), returns HERMES_HOME."""
+    def test_aot_home_is_docker(self, tmp_path, monkeypatch):
+        """When AOT_HOME points outside ~/.aot (Docker), returns AOT_HOME."""
         docker_home = tmp_path / "opt" / "data"
         docker_home.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
-        monkeypatch.setenv("HERMES_HOME", str(docker_home))
-        assert get_default_hermes_root() == docker_home
+        monkeypatch.setenv("AOT_HOME", str(docker_home))
+        assert get_default_aot_root() == docker_home
 
-    def test_hermes_home_is_custom_path(self, tmp_path, monkeypatch):
-        """Any HERMES_HOME outside ~/.hermes is treated as the root."""
-        custom = tmp_path / "my-hermes-data"
+    def test_aot_home_is_custom_path(self, tmp_path, monkeypatch):
+        """Any AOT_HOME outside ~/.aot is treated as the root."""
+        custom = tmp_path / "my-aot-data"
         custom.mkdir()
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
-        monkeypatch.setenv("HERMES_HOME", str(custom))
-        assert get_default_hermes_root() == custom
+        monkeypatch.setenv("AOT_HOME", str(custom))
+        assert get_default_aot_root() == custom
 
     def test_docker_profile_active(self, tmp_path, monkeypatch):
-        """When a Docker profile is active (HERMES_HOME=<root>/profiles/<name>),
+        """When a Docker profile is active (AOT_HOME=<root>/profiles/<name>),
         returns the Docker root, not the profile dir."""
         docker_root = tmp_path / "opt" / "data"
         profile = docker_root / "profiles" / "coder"
         profile.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
-        monkeypatch.setenv("HERMES_HOME", str(profile))
-        assert get_default_hermes_root() == docker_root
+        monkeypatch.setenv("AOT_HOME", str(profile))
+        assert get_default_aot_root() == docker_root
 
 
 class TestIsContainer:
@@ -74,7 +74,7 @@ class TestIsContainer:
 
     def _reset_cache(self, monkeypatch):
         """Reset the cached detection result before each test."""
-        monkeypatch.setattr(hermes_constants, "_container_detected", None)
+        monkeypatch.setattr(aot_constants, "_container_detected", None)
 
     def test_detects_dockerenv(self, monkeypatch, tmp_path):
         """/.dockerenv triggers container detection."""
@@ -112,7 +112,7 @@ class TestIsContainer:
 
     def test_caches_result(self, monkeypatch):
         """Second call uses cached value without re-probing."""
-        monkeypatch.setattr(hermes_constants, "_container_detected", True)
+        monkeypatch.setattr(aot_constants, "_container_detected", True)
         assert is_container() is True
         # Even if we make os.path.exists return False, cached value wins
         monkeypatch.setattr(os.path, "exists", lambda p: False)

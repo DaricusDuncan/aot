@@ -2,14 +2,14 @@
 
 Vercel AI Gateway exposes ``/v1/models`` with a richer shape than OpenAI's
 spec (type, tags, pricing). The pricing object uses ``input`` / ``output``
-where hermes's shared picker expects ``prompt`` / ``completion``; these tests
+where aot's shared picker expects ``prompt`` / ``completion``; these tests
 pin the translation and the curated-list filtering.
 """
 import json
 from unittest.mock import patch, MagicMock
 
-from hermes_cli import models as models_module
-from hermes_cli.models import (
+from aot_cli import models as models_module
+from aot_cli.models import (
     VERCEL_AI_GATEWAY_MODELS,
     _ai_gateway_model_is_free,
     fetch_ai_gateway_models,

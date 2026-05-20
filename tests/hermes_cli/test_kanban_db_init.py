@@ -3,13 +3,13 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-from hermes_cli import kanban_db as kb
+from aot_cli import kanban_db as kb
 
 
 def test_connect_initialization_is_thread_safe(tmp_path, monkeypatch):
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".aot"
     home.mkdir()
-    monkeypatch.setenv("HERMES_HOME", str(home))
+    monkeypatch.setenv("AOT_HOME", str(home))
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
     db_path = kb.kanban_db_path(board="default")

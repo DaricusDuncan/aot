@@ -52,8 +52,8 @@ class _FakeStream:
 
 
 @pytest.fixture(autouse=True)
-def _tmp_hermes_home(tmp_path, monkeypatch):
-    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+def _tmp_aot_home(tmp_path, monkeypatch):
+    monkeypatch.setenv("AOT_HOME", str(tmp_path))
     yield tmp_path
 
 

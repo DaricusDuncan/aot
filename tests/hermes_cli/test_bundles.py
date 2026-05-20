@@ -1,4 +1,4 @@
-"""Tests for hermes_cli/bundles.py — the `hermes bundles` CLI subcommand."""
+"""Tests for aot_cli/bundles.py — the `aot bundles` CLI subcommand."""
 
 import argparse
 import sys
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from hermes_cli.bundles import (
+from aot_cli.bundles import (
     bundles_command,
     register_cli,
 )
@@ -15,7 +15,7 @@ from hermes_cli.bundles import (
 @pytest.fixture
 def bundles_env(tmp_path, monkeypatch):
     bundles_dir = tmp_path / "skill-bundles"
-    monkeypatch.setenv("HERMES_BUNDLES_DIR", str(bundles_dir))
+    monkeypatch.setenv("AOT_BUNDLES_DIR", str(bundles_dir))
     # Reset module-level cache between tests.
     import agent.skill_bundles as mod
     mod._bundles_cache = {}

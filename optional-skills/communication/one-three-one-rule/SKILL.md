@@ -14,7 +14,7 @@ author: Willard Moore
 license: MIT
 category: communication
 metadata:
-  hermes:
+  aot:
     tags: [communication, decision-making, proposals, trade-offs]
 ---
 

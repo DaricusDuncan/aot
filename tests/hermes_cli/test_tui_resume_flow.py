@@ -22,7 +22,7 @@ def _args(**overrides):
 
 @pytest.fixture
 def main_mod(monkeypatch):
-    import hermes_cli.main as mod
+    import aot_cli.main as mod
 
     monkeypatch.setattr(mod, "_has_any_provider_configured", lambda: True)
     return mod
@@ -218,12 +218,12 @@ def test_cmd_chat_tui_forwards_chat_flags(monkeypatch, main_mod):
 def test_main_top_level_tui_accepts_toolsets(monkeypatch, main_mod):
     captured = {}
 
-    import hermes_cli.config as config_mod
+    import aot_cli.config as config_mod
 
-    monkeypatch.setattr(sys, "argv", ["hermes", "--tui", "--toolsets", "web,terminal"])
+    monkeypatch.setattr(sys, "argv", ["aot", "--tui", "--toolsets", "web,terminal"])
     monkeypatch.setitem(
         sys.modules,
-        "hermes_cli.plugins",
+        "aot_cli.plugins",
         types.SimpleNamespace(discover_plugins=lambda: None),
     )
     monkeypatch.setitem(
@@ -254,14 +254,14 @@ def test_main_top_level_tui_accepts_toolsets(monkeypatch, main_mod):
 def test_main_top_level_oneshot_accepts_toolsets(monkeypatch, main_mod):
     captured = {}
 
-    import hermes_cli.config as config_mod
+    import aot_cli.config as config_mod
 
     monkeypatch.setattr(
-        sys, "argv", ["hermes", "-z", "hello", "--toolsets", "web,terminal"]
+        sys, "argv", ["aot", "-z", "hello", "--toolsets", "web,terminal"]
     )
     monkeypatch.setitem(
         sys.modules,
-        "hermes_cli.plugins",
+        "aot_cli.plugins",
         types.SimpleNamespace(discover_plugins=lambda: None),
     )
     monkeypatch.setitem(
@@ -280,7 +280,7 @@ def test_main_top_level_oneshot_accepts_toolsets(monkeypatch, main_mod):
     )
     monkeypatch.setitem(
         sys.modules,
-        "hermes_cli.oneshot",
+        "aot_cli.oneshot",
         types.SimpleNamespace(
             run_oneshot=lambda prompt, **kwargs: captured.update(
                 {"prompt": prompt, **kwargs}
@@ -304,14 +304,14 @@ def test_main_top_level_oneshot_accepts_toolsets(monkeypatch, main_mod):
 def _stub_plugin_discovery(monkeypatch):
     monkeypatch.setitem(
         sys.modules,
-        "hermes_cli.plugins",
+        "aot_cli.plugins",
         types.SimpleNamespace(discover_plugins=lambda: None),
     )
 
 
 def test_oneshot_rejects_invalid_only_toolsets(monkeypatch, capsys):
     _stub_plugin_discovery(monkeypatch)
-    from hermes_cli.oneshot import run_oneshot
+    from aot_cli.oneshot import run_oneshot
 
     assert run_oneshot("hello", toolsets="nope") == 2
     err = capsys.readouterr().err
@@ -321,7 +321,7 @@ def test_oneshot_rejects_invalid_only_toolsets(monkeypatch, capsys):
 
 def test_oneshot_filters_invalid_toolsets_before_redirect(monkeypatch, capsys):
     _stub_plugin_discovery(monkeypatch)
-    from hermes_cli.oneshot import _validate_explicit_toolsets
+    from aot_cli.oneshot import _validate_explicit_toolsets
 
     valid, error = _validate_explicit_toolsets("web,nope")
 
@@ -331,7 +331,7 @@ def test_oneshot_filters_invalid_toolsets_before_redirect(monkeypatch, capsys):
 
 
 def test_oneshot_all_toolsets_means_all_not_configured_cli():
-    from hermes_cli.oneshot import _validate_explicit_toolsets
+    from aot_cli.oneshot import _validate_explicit_toolsets
 
     valid, error = _validate_explicit_toolsets("all")
 
@@ -341,7 +341,7 @@ def test_oneshot_all_toolsets_means_all_not_configured_cli():
 
 def test_oneshot_all_toolsets_warns_about_ignored_extra_entries(monkeypatch, capsys):
     _stub_plugin_discovery(monkeypatch)
-    from hermes_cli.oneshot import _validate_explicit_toolsets
+    from aot_cli.oneshot import _validate_explicit_toolsets
 
     valid, error = _validate_explicit_toolsets("all,nope")
 
@@ -353,7 +353,7 @@ def test_oneshot_all_toolsets_warns_about_ignored_extra_entries(monkeypatch, cap
 def test_oneshot_accepts_plugin_toolset_after_discovery(monkeypatch):
     import toolsets
 
-    from hermes_cli.oneshot import _validate_explicit_toolsets
+    from aot_cli.oneshot import _validate_explicit_toolsets
 
     discovered = {"ready": False}
     original_validate = toolsets.validate_toolset
@@ -364,7 +364,7 @@ def test_oneshot_accepts_plugin_toolset_after_discovery(monkeypatch):
     monkeypatch.setattr(toolsets, "validate_toolset", fake_validate)
     monkeypatch.setitem(
         sys.modules,
-        "hermes_cli.plugins",
+        "aot_cli.plugins",
         types.SimpleNamespace(
             discover_plugins=lambda: discovered.update({"ready": True})
         ),
@@ -378,9 +378,9 @@ def test_oneshot_accepts_plugin_toolset_after_discovery(monkeypatch):
 
 def test_oneshot_rejects_disabled_mcp_toolset(monkeypatch, capsys):
     _stub_plugin_discovery(monkeypatch)
-    import hermes_cli.config as config_mod
+    import aot_cli.config as config_mod
 
-    from hermes_cli.oneshot import _validate_explicit_toolsets
+    from aot_cli.oneshot import _validate_explicit_toolsets
 
     monkeypatch.setattr(
         config_mod,
@@ -391,7 +391,7 @@ def test_oneshot_rejects_disabled_mcp_toolset(monkeypatch, capsys):
     valid, error = _validate_explicit_toolsets("mcp-off")
 
     assert valid is None
-    assert error == "hermes -z: --toolsets did not contain any valid toolsets.\n"
+    assert error == "aot -z: --toolsets did not contain any valid toolsets.\n"
     err = capsys.readouterr().err
     assert "ignoring disabled MCP servers" in err
     assert "mcp-off" in err
@@ -399,9 +399,9 @@ def test_oneshot_rejects_disabled_mcp_toolset(monkeypatch, capsys):
 
 def test_oneshot_distinguishes_disabled_mcp_from_unknown(monkeypatch, capsys):
     _stub_plugin_discovery(monkeypatch)
-    import hermes_cli.config as config_mod
+    import aot_cli.config as config_mod
 
-    from hermes_cli.oneshot import _validate_explicit_toolsets
+    from aot_cli.oneshot import _validate_explicit_toolsets
 
     monkeypatch.setattr(
         config_mod,
@@ -420,8 +420,8 @@ def test_oneshot_distinguishes_disabled_mcp_from_unknown(monkeypatch, capsys):
 
 
 def test_oneshot_wires_session_db_for_recall(monkeypatch):
-    """hermes -z bypasses HermesCLI, but recall still needs SessionDB."""
-    from hermes_cli.oneshot import _run_agent
+    """aot -z bypasses AotCLI, but recall still needs SessionDB."""
+    from aot_cli.oneshot import _run_agent
 
     captured = {}
     sentinel_db = object()
@@ -448,22 +448,22 @@ def test_oneshot_wires_session_db_for_recall(monkeypatch):
         return module
 
     monkeypatch.setitem(sys.modules, "run_agent", mod("run_agent", AIAgent=FakeAgent))
-    monkeypatch.setitem(sys.modules, "hermes_state", mod("hermes_state", SessionDB=FakeSessionDB))
+    monkeypatch.setitem(sys.modules, "aot_state", mod("aot_state", SessionDB=FakeSessionDB))
     monkeypatch.setitem(
         sys.modules,
-        "hermes_cli.config",
-        mod("hermes_cli.config", load_config=lambda: {"model": {"default": "m"}}),
+        "aot_cli.config",
+        mod("aot_cli.config", load_config=lambda: {"model": {"default": "m"}}),
     )
     monkeypatch.setitem(
         sys.modules,
-        "hermes_cli.models",
-        mod("hermes_cli.models", detect_provider_for_model=lambda *_args, **_kwargs: None),
+        "aot_cli.models",
+        mod("aot_cli.models", detect_provider_for_model=lambda *_args, **_kwargs: None),
     )
     monkeypatch.setitem(
         sys.modules,
-        "hermes_cli.runtime_provider",
+        "aot_cli.runtime_provider",
         mod(
-            "hermes_cli.runtime_provider",
+            "aot_cli.runtime_provider",
             resolve_runtime_provider=lambda **_kwargs: {
                 "api_key": "k",
                 "base_url": "u",
@@ -475,8 +475,8 @@ def test_oneshot_wires_session_db_for_recall(monkeypatch):
     )
     monkeypatch.setitem(
         sys.modules,
-        "hermes_cli.tools_config",
-        mod("hermes_cli.tools_config", _get_platform_tools=lambda *_args, **_kwargs: {"session_search"}),
+        "aot_cli.tools_config",
+        mod("aot_cli.tools_config", _get_platform_tools=lambda *_args, **_kwargs: {"session_search"}),
     )
 
     assert _run_agent("recall this") == "ok"
@@ -498,7 +498,7 @@ def test_launch_tui_exports_model_provider_and_toolsets(monkeypatch, main_mod):
     def fake_call(argv, cwd=None, env=None):
         nonlocal active_path_during_call
         captured.update({"argv": argv, "cwd": cwd, "env": env})
-        active_path_during_call = Path(env["HERMES_TUI_ACTIVE_SESSION_FILE"])
+        active_path_during_call = Path(env["AOT_TUI_ACTIVE_SESSION_FILE"])
         assert active_path_during_call.exists()
         return 1
 
@@ -506,17 +506,17 @@ def test_launch_tui_exports_model_provider_and_toolsets(monkeypatch, main_mod):
 
     with pytest.raises(SystemExit):
         main_mod._launch_tui(
-            model="nous/hermes-test", provider="nous", toolsets="web, terminal"
+            model="nous/aot-test", provider="nous", toolsets="web, terminal"
         )
 
     env = captured["env"]
-    assert env["HERMES_MODEL"] == "nous/hermes-test"
-    assert env["HERMES_INFERENCE_MODEL"] == "nous/hermes-test"
-    assert env["HERMES_TUI_PROVIDER"] == "nous"
-    assert env["HERMES_INFERENCE_PROVIDER"] == "nous"
-    assert env["HERMES_TUI_TOOLSETS"] == "web,terminal"
-    active_path = Path(env["HERMES_TUI_ACTIVE_SESSION_FILE"])
-    assert active_path.name.startswith("hermes-tui-active-session-")
+    assert env["AOT_MODEL"] == "nous/aot-test"
+    assert env["AOT_INFERENCE_MODEL"] == "nous/aot-test"
+    assert env["AOT_TUI_PROVIDER"] == "nous"
+    assert env["AOT_INFERENCE_PROVIDER"] == "nous"
+    assert env["AOT_TUI_TOOLSETS"] == "web,terminal"
+    active_path = Path(env["AOT_TUI_ACTIVE_SESSION_FILE"])
+    assert active_path.name.startswith("aot-tui-active-session-")
     assert active_path.suffix == ".json"
     assert active_path_during_call == active_path
     assert not active_path.exists()
@@ -533,7 +533,7 @@ def test_launch_tui_exit_code_42_relaunches_update(monkeypatch, main_mod):
     )
     monkeypatch.setattr(main_mod.subprocess, "call", lambda *args, **kwargs: 42)
 
-    with patch("hermes_cli.relaunch.relaunch") as mock_relaunch:
+    with patch("aot_cli.relaunch.relaunch") as mock_relaunch:
         with pytest.raises(SystemExit) as exc:
             main_mod._launch_tui()
 
@@ -544,7 +544,7 @@ def test_launch_tui_exit_code_42_relaunches_update(monkeypatch, main_mod):
 def test_launch_tui_drops_stale_resume_env_without_resume_arg(monkeypatch, main_mod):
     captured = {}
 
-    monkeypatch.setenv("HERMES_TUI_RESUME", "stale-missing-session")
+    monkeypatch.setenv("AOT_TUI_RESUME", "stale-missing-session")
     monkeypatch.setattr(
         main_mod,
         "_make_tui_argv",
@@ -559,13 +559,13 @@ def test_launch_tui_drops_stale_resume_env_without_resume_arg(monkeypatch, main_
     with pytest.raises(SystemExit):
         main_mod._launch_tui()
 
-    assert "HERMES_TUI_RESUME" not in captured["env"]
+    assert "AOT_TUI_RESUME" not in captured["env"]
 
 
 def test_launch_tui_sets_resume_env_from_resume_arg(monkeypatch, main_mod):
     captured = {}
 
-    monkeypatch.setenv("HERMES_TUI_RESUME", "stale-missing-session")
+    monkeypatch.setenv("AOT_TUI_RESUME", "stale-missing-session")
     monkeypatch.setattr(
         main_mod,
         "_make_tui_argv",
@@ -580,20 +580,20 @@ def test_launch_tui_sets_resume_env_from_resume_arg(monkeypatch, main_mod):
     with pytest.raises(SystemExit):
         main_mod._launch_tui(resume_session_id="20260518_000000_goodid")
 
-    assert captured["env"]["HERMES_TUI_RESUME"] == "20260518_000000_goodid"
+    assert captured["env"]["AOT_TUI_RESUME"] == "20260518_000000_goodid"
 
 
-def test_make_tui_argv_dev_prebuilds_hermes_ink(monkeypatch, main_mod, tmp_path):
+def test_make_tui_argv_dev_prebuilds_aot_ink(monkeypatch, main_mod, tmp_path):
     tui_dir = tmp_path / "ui-tui"
     tsx = tui_dir / "node_modules" / ".bin" / "tsx"
-    ink_dir = tui_dir / "packages" / "hermes-ink"
+    ink_dir = tui_dir / "packages" / "aot-ink"
     tsx.parent.mkdir(parents=True)
     ink_dir.mkdir(parents=True)
     tsx.write_text("#!/usr/bin/env node\n", encoding="utf-8")
 
     monkeypatch.setattr(main_mod, "_ensure_tui_node", lambda: None)
     monkeypatch.setattr(main_mod, "_tui_need_npm_install", lambda _tui_dir: False)
-    monkeypatch.delenv("HERMES_TUI_DIR", raising=False)
+    monkeypatch.delenv("AOT_TUI_DIR", raising=False)
     monkeypatch.setattr(main_mod.shutil, "which", lambda bin_name: f"/usr/bin/{bin_name}")
 
     calls = []
@@ -612,7 +612,7 @@ def test_make_tui_argv_dev_prebuilds_hermes_ink(monkeypatch, main_mod, tmp_path)
 
 
 def test_print_tui_exit_summary_includes_resume_and_token_totals(monkeypatch, capsys):
-    import hermes_cli.main as main_mod
+    import aot_cli.main as main_mod
 
     class _FakeDB:
         def get_session(self, session_id):
@@ -633,22 +633,22 @@ def test_print_tui_exit_summary_includes_resume_and_token_totals(monkeypatch, ca
             return None
 
     monkeypatch.setitem(
-        sys.modules, "hermes_state", types.SimpleNamespace(SessionDB=lambda: _FakeDB())
+        sys.modules, "aot_state", types.SimpleNamespace(SessionDB=lambda: _FakeDB())
     )
 
     main_mod._print_tui_exit_summary("20260409_000001_abc123")
     out = capsys.readouterr().out
 
     assert "Resume this session with:" in out
-    assert "hermes --tui --resume 20260409_000001_abc123" in out
-    assert 'hermes --tui -c "demo title"' in out
+    assert "aot --tui --resume 20260409_000001_abc123" in out
+    assert 'aot --tui -c "demo title"' in out
     assert "Tokens:         21 (in 10, out 6, cache 4, reasoning 1)" in out
 
 
 def test_print_tui_exit_summary_prefers_actual_active_session_file(
     monkeypatch, capsys, tmp_path
 ):
-    import hermes_cli.main as main_mod
+    import aot_cli.main as main_mod
 
     seen = []
 
@@ -673,12 +673,12 @@ def test_print_tui_exit_summary_prefers_actual_active_session_file(
     active = tmp_path / "active.json"
     active.write_text('{"session_id":"actual_session"}', encoding="utf-8")
     monkeypatch.setitem(
-        sys.modules, "hermes_state", types.SimpleNamespace(SessionDB=lambda: _FakeDB())
+        sys.modules, "aot_state", types.SimpleNamespace(SessionDB=lambda: _FakeDB())
     )
 
     main_mod._print_tui_exit_summary("startup_resume", str(active))
     out = capsys.readouterr().out
 
     assert seen == ["actual_session"]
-    assert "hermes --tui --resume actual_session" in out
+    assert "aot --tui --resume actual_session" in out
     assert "startup_resume" not in out

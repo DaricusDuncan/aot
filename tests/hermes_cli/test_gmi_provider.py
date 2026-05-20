@@ -16,9 +16,9 @@ if "dotenv" not in sys.modules:
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     sys.modules["dotenv"] = fake_dotenv
 
-from hermes_cli.auth import resolve_provider
-from hermes_cli.config import load_config
-from hermes_cli.models import (
+from aot_cli.auth import resolve_provider
+from aot_cli.config import load_config
+from aot_cli.models import (
     CANONICAL_PROVIDERS,
     _PROVIDER_LABELS,
     _PROVIDER_MODELS,
@@ -56,7 +56,7 @@ class TestGmiAliases:
         assert normalize_provider("gmicloud") == "gmi"
 
     def test_providers_normalize_provider(self):
-        from hermes_cli.providers import normalize_provider as normalize_provider_in_providers
+        from aot_cli.providers import normalize_provider as normalize_provider_in_providers
 
         assert normalize_provider_in_providers("gmi-cloud") == "gmi"
         assert normalize_provider_in_providers("gmicloud") == "gmi"
@@ -64,7 +64,7 @@ class TestGmiAliases:
 
 class TestGmiConfigRegistry:
     def test_optional_env_vars_include_gmi(self):
-        from hermes_cli.config import OPTIONAL_ENV_VARS
+        from aot_cli.config import OPTIONAL_ENV_VARS
 
         assert "GMI_API_KEY" in OPTIONAL_ENV_VARS
         assert OPTIONAL_ENV_VARS["GMI_API_KEY"]["category"] == "provider"
@@ -76,7 +76,7 @@ class TestGmiConfigRegistry:
         assert OPTIONAL_ENV_VARS["GMI_BASE_URL"]["password"] is False
         # ENV_VARS_BY_VERSION entries are not needed for providers added after
         # _config_version 22 (the current baseline) — users discover GMI via
-        # hermes model, not via upgrade prompts.
+        # aot model, not via upgrade prompts.
 
 
 class TestGmiModelCatalog:
@@ -94,7 +94,7 @@ class TestGmiModelCatalog:
 
     def test_provider_model_ids_prefers_live_api(self, monkeypatch):
         monkeypatch.setattr(
-            "hermes_cli.auth.resolve_api_key_provider_credentials",
+            "aot_cli.auth.resolve_api_key_provider_credentials",
             lambda provider_id: {
                 "provider": provider_id,
                 "api_key": "gmi-live-key",
@@ -103,7 +103,7 @@ class TestGmiModelCatalog:
             },
         )
         monkeypatch.setattr(
-            "hermes_cli.models.fetch_api_models",
+            "aot_cli.models.fetch_api_models",
             lambda api_key, base_url: [
                 "openai/gpt-5.4-mini",
                 "zai-org/GLM-5.1-FP8",
@@ -117,7 +117,7 @@ class TestGmiModelCatalog:
 
     def test_provider_model_ids_falls_back_to_static_models(self, monkeypatch):
         monkeypatch.setattr(
-            "hermes_cli.auth.resolve_api_key_provider_credentials",
+            "aot_cli.auth.resolve_api_key_provider_credentials",
             lambda provider_id: {
                 "provider": provider_id,
                 "api_key": "gmi-live-key",
@@ -125,17 +125,17 @@ class TestGmiModelCatalog:
                 "source": "GMI_API_KEY",
             },
         )
-        monkeypatch.setattr("hermes_cli.models.fetch_api_models", lambda api_key, base_url: None)
+        monkeypatch.setattr("aot_cli.models.fetch_api_models", lambda api_key, base_url: None)
 
         assert provider_model_ids("gmi") == list(_PROVIDER_MODELS["gmi"])
 
 
 class TestGmiProvidersModule:
     def test_overlay_exists(self):
-        from hermes_cli.providers import HERMES_OVERLAYS
+        from aot_cli.providers import AOT_OVERLAYS
 
-        assert "gmi" in HERMES_OVERLAYS
-        overlay = HERMES_OVERLAYS["gmi"]
+        assert "gmi" in AOT_OVERLAYS
+        overlay = AOT_OVERLAYS["gmi"]
         assert overlay.transport == "openai_chat"
         assert overlay.extra_env_vars == ("GMI_API_KEY",)
         assert overlay.base_url_override == "https://api.gmi-serving.com/v1"
@@ -148,21 +148,21 @@ class TestGmiProvidersModule:
 
 class TestGmiDoctor:
     def test_provider_env_hints_include_gmi(self):
-        from hermes_cli.doctor import _PROVIDER_ENV_HINTS
+        from aot_cli.doctor import _PROVIDER_ENV_HINTS
 
         assert "GMI_API_KEY" in _PROVIDER_ENV_HINTS
 
     def test_run_doctor_checks_gmi_models_endpoint(self, monkeypatch, tmp_path):
-        from hermes_cli import doctor as doctor_mod
+        from aot_cli import doctor as doctor_mod
 
-        home = tmp_path / ".hermes"
+        home = tmp_path / ".aot"
         home.mkdir(parents=True, exist_ok=True)
         (home / "config.yaml").write_text("memory: {}\n", encoding="utf-8")
         (home / ".env").write_text("GMI_API_KEY=***\n", encoding="utf-8")
         project = tmp_path / "project"
         project.mkdir(exist_ok=True)
 
-        monkeypatch.setattr(doctor_mod, "HERMES_HOME", home)
+        monkeypatch.setattr(doctor_mod, "AOT_HOME", home)
         monkeypatch.setattr(doctor_mod, "PROJECT_ROOT", project)
         monkeypatch.setattr(doctor_mod, "_DHH", str(home))
         monkeypatch.setenv("GMI_API_KEY", "gmi-test-key")
@@ -198,7 +198,7 @@ class TestGmiDoctor:
         monkeypatch.setitem(sys.modules, "model_tools", fake_model_tools)
 
         try:
-            from hermes_cli import auth as _auth_mod
+            from aot_cli import auth as _auth_mod
 
             monkeypatch.setattr(_auth_mod, "get_nous_auth_status", lambda: {})
             monkeypatch.setattr(_auth_mod, "get_codex_auth_status", lambda: {})
@@ -284,21 +284,21 @@ class TestGmiAuxiliary:
         assert model == "google/gemini-3.1-flash-lite-preview"
         assert mock_openai.call_args.kwargs["api_key"] == "gmi-test-key"
         assert mock_openai.call_args.kwargs["base_url"] == "https://api.gmi-serving.com/v1"
-        # GMI profile declares default_headers with a HermesAgent User-Agent
+        # GMI profile declares default_headers with a AotAgent User-Agent
         # for traffic attribution. The generic profile-fallback branch in
         # resolve_provider_client should carry it through to the OpenAI client.
         headers = mock_openai.call_args.kwargs.get("default_headers", {})
-        assert headers.get("User-Agent", "").startswith("HermesAgent/")
+        assert headers.get("User-Agent", "").startswith("AotAgent/")
 
-    def test_gmi_profile_declares_hermes_user_agent(self):
-        """The GMI plugin sets a HermesAgent/<ver> User-Agent on its profile."""
+    def test_gmi_profile_declares_aot_user_agent(self):
+        """The GMI plugin sets a AotAgent/<ver> User-Agent on its profile."""
         from providers import get_provider_profile
 
         profile = get_provider_profile("gmi")
         assert profile is not None
         ua = profile.default_headers.get("User-Agent", "")
-        assert ua.startswith("HermesAgent/"), (
-            f"expected GMI profile User-Agent to start with 'HermesAgent/', got {ua!r}"
+        assert ua.startswith("AotAgent/"), (
+            f"expected GMI profile User-Agent to start with 'AotAgent/', got {ua!r}"
         )
 
     def test_resolve_provider_client_accepts_gmi_alias(self, monkeypatch):
@@ -316,14 +316,14 @@ class TestGmiMainFlow:
     def test_chat_parser_accepts_gmi_provider(self, monkeypatch):
         recorded: dict[str, str] = {}
 
-        monkeypatch.setattr("hermes_cli.config.get_container_exec_info", lambda: None)
+        monkeypatch.setattr("aot_cli.config.get_container_exec_info", lambda: None)
         monkeypatch.setattr(
-            "hermes_cli.main.cmd_chat",
+            "aot_cli.main.cmd_chat",
             lambda args: recorded.setdefault("provider", args.provider),
         )
-        monkeypatch.setattr(sys, "argv", ["hermes", "chat", "--provider", "gmi"])
+        monkeypatch.setattr(sys, "argv", ["aot", "chat", "--provider", "gmi"])
 
-        from hermes_cli.main import main
+        from aot_cli.main import main
 
         main()
 
@@ -332,7 +332,7 @@ class TestGmiMainFlow:
     def test_select_provider_and_model_routes_gmi_to_generic_flow(self, monkeypatch):
         recorded: dict[str, str] = {}
 
-        monkeypatch.setattr("hermes_cli.auth.resolve_provider", lambda *args, **kwargs: None)
+        monkeypatch.setattr("aot_cli.auth.resolve_provider", lambda *args, **kwargs: None)
 
         def fake_prompt_provider_choice(choices, default=0):
             return next(i for i, label in enumerate(choices) if label.startswith("GMI Cloud"))
@@ -340,10 +340,10 @@ class TestGmiMainFlow:
         def fake_model_flow_api_key_provider(config, provider_id, current_model=""):
             recorded["provider_id"] = provider_id
 
-        monkeypatch.setattr("hermes_cli.main._prompt_provider_choice", fake_prompt_provider_choice)
-        monkeypatch.setattr("hermes_cli.main._model_flow_api_key_provider", fake_model_flow_api_key_provider)
+        monkeypatch.setattr("aot_cli.main._prompt_provider_choice", fake_prompt_provider_choice)
+        monkeypatch.setattr("aot_cli.main._model_flow_api_key_provider", fake_model_flow_api_key_provider)
 
-        from hermes_cli.main import select_provider_and_model
+        from aot_cli.main import select_provider_and_model
 
         select_provider_and_model()
 
@@ -353,25 +353,25 @@ class TestGmiMainFlow:
         monkeypatch.setenv("GMI_API_KEY", "gmi-test-key")
 
         with patch(
-            "hermes_cli.models.fetch_api_models",
+            "aot_cli.models.fetch_api_models",
             return_value=["zai-org/GLM-5.1-FP8", "openai/gpt-5.4-mini"],
         ), patch(
-            "hermes_cli.auth._prompt_model_selection",
+            "aot_cli.auth._prompt_model_selection",
             return_value="openai/gpt-5.4-mini",
         ), patch(
-            "hermes_cli.auth.deactivate_provider",
+            "aot_cli.auth.deactivate_provider",
         ), patch(
             "builtins.input",
             return_value="",
         ):
-            from hermes_cli.main import _model_flow_api_key_provider
+            from aot_cli.main import _model_flow_api_key_provider
 
             _model_flow_api_key_provider(load_config(), "gmi", "old-model")
 
         import yaml
-        from hermes_constants import get_hermes_home
+        from aot_constants import get_aot_home
 
-        config = yaml.safe_load((get_hermes_home() / "config.yaml").read_text()) or {}
+        config = yaml.safe_load((get_aot_home() / "config.yaml").read_text()) or {}
         model_cfg = config.get("model")
         assert isinstance(model_cfg, dict)
         assert model_cfg["provider"] == "gmi"

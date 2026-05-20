@@ -3,7 +3,7 @@
 // nudges chalk / supports-color before either package is initialized.
 import './lib/forceTruecolor.js'
 
-import type { FrameEvent } from '@hermes/ink'
+import type { FrameEvent } from '@aot/ink'
 
 import { TERMUX_TUI_MODE } from './config/env.js'
 import { GatewayClient } from './gatewayClient.js'
@@ -14,7 +14,7 @@ import { openExternalUrl } from './lib/openExternalUrl.js'
 import { resetTerminalModes } from './lib/terminalModes.js'
 
 if (!process.stdin.isTTY) {
-  console.log('hermes-tui: no TTY')
+  console.log('aot-tui: no TTY')
   process.exit(0)
 }
 
@@ -36,7 +36,7 @@ const gw = new GatewayClient()
 gw.start()
 
 const dumpNotice = (snap: MemorySnapshot, dump: HeapDumpResult | null) =>
-  `hermes-tui: ${snap.level} memory (${formatBytes(snap.heapUsed)}) — auto heap dump → ${dump?.heapPath ?? '(failed)'}\n`
+  `aot-tui: ${snap.level} memory (${formatBytes(snap.heapUsed)}) — auto heap dump → ${dump?.heapPath ?? '(failed)'}\n`
 
 setupGracefulExit({
   cleanups: [
@@ -49,11 +49,11 @@ setupGracefulExit({
   onError: (scope, err) => {
     const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
 
-    process.stderr.write(`hermes-tui ${scope}: ${message.slice(0, 2000)}\n`)
+    process.stderr.write(`aot-tui ${scope}: ${message.slice(0, 2000)}\n`)
   },
   onSignal: signal => {
     resetTerminalModes()
-    process.stderr.write(`hermes-tui: received ${signal}\n`)
+    process.stderr.write(`aot-tui: received ${signal}\n`)
   }
 })
 
@@ -61,20 +61,20 @@ const stopMemoryMonitor = startMemoryMonitor({
   onCritical: (snap, dump) => {
     resetTerminalModes()
     process.stderr.write(dumpNotice(snap, dump))
-    process.stderr.write('hermes-tui: exiting to avoid OOM; restart to recover\n')
+    process.stderr.write('aot-tui: exiting to avoid OOM; restart to recover\n')
     process.exit(137)
   },
   onHigh: (snap, dump) => process.stderr.write(dumpNotice(snap, dump))
 })
 
-if (process.env.HERMES_HEAPDUMP_ON_START === '1') {
+if (process.env.AOT_HEAPDUMP_ON_START === '1') {
   void performHeapDump('manual')
 }
 
 process.on('beforeExit', () => stopMemoryMonitor())
 
 const [ink, { App }, { logFrameEvent }, { trackFrame }] = await Promise.all([
-  import('@hermes/ink'),
+  import('@aot/ink'),
   import('./app.js'),
   import('./lib/perfPane.js'),
   import('./lib/fpsStore.js')

@@ -1,4 +1,4 @@
-"""Regression: ``hermes setup`` for the ollama-cloud provider must force-refresh
+"""Regression: ``aot setup`` for the ollama-cloud provider must force-refresh
 the model cache after the user supplies a key, otherwise the picker keeps
 serving a stale cache (models.dev only, no live API probe) for up to an hour.
 """
@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 def test_setup_ollama_cloud_passes_force_refresh(monkeypatch):
     """The provider-setup model-fetch for ollama-cloud must pass ``force_refresh=True``."""
-    import hermes_cli.main as main_mod
+    import aot_cli.main as main_mod
     import inspect
 
     src = inspect.getsource(main_mod)

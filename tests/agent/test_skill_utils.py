@@ -3,11 +3,11 @@
 from agent.skill_utils import extract_skill_conditions
 
 
-def test_metadata_as_dict_with_hermes():
-    """Normal case: metadata is a dict containing hermes keys."""
+def test_metadata_as_dict_with_aot():
+    """Normal case: metadata is a dict containing aot keys."""
     frontmatter = {
         "metadata": {
-            "hermes": {
+            "aot": {
                 "fallback_for_toolsets": ["toolset_a"],
                 "requires_toolsets": ["toolset_b"],
                 "fallback_for_tools": ["tool_x"],

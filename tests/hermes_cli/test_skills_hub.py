@@ -5,7 +5,7 @@ import pytest
 from rich.console import Console
 
 from cli import ChatConsole
-from hermes_cli.skills_hub import do_check, do_install, do_list, do_update, handle_skills_slash
+from aot_cli.skills_hub import do_check, do_install, do_list, do_update, handle_skills_slash
 
 
 class _DummyLockFile:
@@ -82,7 +82,7 @@ def _capture_check(monkeypatch, results, name=None) -> str:
 
 def _capture_update(monkeypatch, results) -> tuple[str, list[tuple[str, str, bool]]]:
     import tools.skills_hub as hub
-    import hermes_cli.skills_hub as cli_hub
+    import aot_cli.skills_hub as cli_hub
 
     sink = StringIO()
     console = Console(file=sink, force_terminal=False, color_system=None)
@@ -204,10 +204,10 @@ def test_do_list_enabled_only_hides_disabled(three_source_env, monkeypatch):
 
 
 def test_do_list_platform_env_is_ignored(three_source_env, monkeypatch):
-    """`hermes skills list` reads the active profile's config via
-    HERMES_HOME (swapped by -p), so it must NOT pass a platform arg to
+    """`aot skills list` reads the active profile's config via
+    AOT_HOME (swapped by -p), so it must NOT pass a platform arg to
     ``get_disabled_skill_names`` — otherwise per-platform overrides
-    would silently leak in from HERMES_PLATFORM env."""
+    would silently leak in from AOT_PLATFORM env."""
     from agent import skill_utils
 
     seen = {}
@@ -497,7 +497,7 @@ def test_url_install_cancel_name_prompt_aborts(monkeypatch, tmp_path, hub_env):
 
 def test_existing_categories_skips_top_level_skills(monkeypatch, tmp_path, hub_env):
     import tools.skills_hub as hub
-    from hermes_cli.skills_hub import _existing_categories
+    from aot_cli.skills_hub import _existing_categories
 
     # Category bucket with nested skill.
     (hub.SKILLS_DIR / "productivity" / "notion").mkdir(parents=True)
@@ -522,5 +522,5 @@ def test_existing_categories_returns_empty_when_skills_dir_missing(monkeypatch, 
     import tools.skills_hub as hub
     monkeypatch.setattr(hub, "SKILLS_DIR", tmp_path / "does-not-exist")
 
-    from hermes_cli.skills_hub import _existing_categories
+    from aot_cli.skills_hub import _existing_categories
     assert _existing_categories() == []

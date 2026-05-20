@@ -1,7 +1,7 @@
 import json
 
-from hermes_cli import kanban_db as kb
-from hermes_cli.kanban_swarm import (
+from aot_cli import kanban_db as kb
+from aot_cli.kanban_swarm import (
     SwarmWorkerSpec,
     create_swarm,
     latest_blackboard,

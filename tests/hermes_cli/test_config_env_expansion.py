@@ -2,7 +2,7 @@
 
 import os
 import pytest
-from hermes_cli.config import _expand_env_vars, load_config
+from aot_cli.config import _expand_env_vars, load_config
 from unittest.mock import patch as mock_patch
 
 
@@ -73,7 +73,7 @@ class TestLoadConfigExpansion:
         monkeypatch.setenv("GOOGLE_API_KEY", "gsk-test-key")
         monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "1234567:ABC-token")
         # Patch the imported function's own globals. Other tests may reload
-        # hermes_cli.config, making string-target monkeypatches hit a different
+        # aot_cli.config, making string-target monkeypatches hit a different
         # module object than this collection-time imported load_config().
         monkeypatch.setitem(load_config.__globals__, "get_config_path", lambda: config_file)
 
@@ -109,8 +109,8 @@ class TestLoadCliConfigExpansion:
         config_file.write_text(config_yaml)
 
         monkeypatch.setenv("TEST_VISION_KEY_XYZ", "vis-key-123")
-        # Patch the hermes home so load_cli_config finds our test config
-        monkeypatch.setattr("cli._hermes_home", tmp_path)
+        # Patch the aot home so load_cli_config finds our test config
+        monkeypatch.setattr("cli._aot_home", tmp_path)
 
         from cli import load_cli_config
         config = load_cli_config()
@@ -127,7 +127,7 @@ class TestLoadCliConfigExpansion:
         config_file.write_text(config_yaml)
 
         monkeypatch.delenv("UNSET_CLI_VAR_ABC", raising=False)
-        monkeypatch.setattr("cli._hermes_home", tmp_path)
+        monkeypatch.setattr("cli._aot_home", tmp_path)
 
         from cli import load_cli_config
         config = load_cli_config()

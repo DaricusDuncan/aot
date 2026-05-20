@@ -10,16 +10,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from hermes_cli import profiles as profiles_mod
-from hermes_cli import profile_describer as describer
+from aot_cli import profiles as profiles_mod
+from aot_cli import profile_describer as describer
 
 
 @pytest.fixture
 def profile_env(tmp_path, monkeypatch):
-    """Set up an isolated HERMES_HOME with a default profile dir."""
-    home = tmp_path / ".hermes"
+    """Set up an isolated AOT_HOME with a default profile dir."""
+    home = tmp_path / ".aot"
     home.mkdir()
-    monkeypatch.setenv("HERMES_HOME", str(home))
+    monkeypatch.setenv("AOT_HOME", str(home))
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     return home
 
