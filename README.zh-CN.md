@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png" alt="Aot Agent" width="100%">
+  <img src="assets/aot_banner.png" alt="Aot Agent" width="100%">
 </p>
 
 # Aot Agent ☤

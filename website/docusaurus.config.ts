@@ -88,7 +88,7 @@ const config: Config = {
   ],
 
   themeConfig: {
-    image: 'img/aot-agent-banner.png',
+    image: 'img/aot-agent-aot_banner.png',
     colorMode: {
       defaultMode: 'dark',
       respectPrefersColorScheme: true,
