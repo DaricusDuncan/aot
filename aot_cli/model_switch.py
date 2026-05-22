@@ -1625,7 +1625,21 @@ def list_authenticated_providers(
                     "name": display_name,
                     "api_url": api_url,
                     "models": [],
+                    "entry_count": 0,
+                    "discover_models": None,
                 }
+            groups[group_key]["entry_count"] += 1
+
+            discover = entry.get("discover_models")
+            if isinstance(discover, str):
+                discover = discover.lower() not in {"false", "no", "0"}
+            elif discover is not None:
+                discover = bool(discover)
+            if discover is not None:
+                existing_discover = groups[group_key].get("discover_models")
+                groups[group_key]["discover_models"] = (
+                    discover if existing_discover is None else bool(existing_discover or discover)
+                )
 
             # The singular ``model:`` field only holds the currently
             # active model. Aot's own writer (main.py::_save_custom_provider)
@@ -1706,7 +1720,15 @@ def list_authenticated_providers(
             # - Without an api_key AND no explicit models, fall through to
             #   live discovery so bare-endpoint custom providers (local
             #   llama.cpp / Ollama servers) still appear populated.
-            should_probe = bool(api_url) and (bool(api_key) or not grp["models"])
+            discover_pref = grp.get("discover_models")
+            if discover_pref is None:
+                # Preserve explicit configured subsets by default when the same
+                # endpoint has multiple custom entries grouped together.
+                should_probe = bool(api_url) and (
+                    not grp["models"] or (bool(api_key) and int(grp.get("entry_count", 0) or 0) <= 1)
+                )
+            else:
+                should_probe = bool(api_url) and bool(discover_pref) and (bool(api_key) or not grp["models"])
             if should_probe:
                 try:
                     from aot_cli.models import fetch_api_models

@@ -1272,11 +1272,14 @@ def init_agent(
     # 4. Fall back to built-in ContextCompressor
     _selected_engine = None
     _engine_name = "compressor"  # default
+    _engine_env = os.getenv("AOT_CONTEXT_ENGINE", "").strip()
     try:
         _ctx_cfg = _agent_cfg.get("context", {}) if isinstance(_agent_cfg, dict) else {}
         _engine_name = _ctx_cfg.get("engine", "compressor") or "compressor"
     except Exception:
         pass
+    if _engine_env:
+        _engine_name = _engine_env
 
     if _engine_name != "compressor":
         # Try loading from plugins/context_engine/<name>/

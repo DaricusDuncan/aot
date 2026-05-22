@@ -300,16 +300,24 @@ def compress_context(
             pass
 
     _compress_msgs_before = len(messages)
+    _compressions_before = int(
+        getattr(getattr(agent, "context_compressor", None), "compression_count", 0) or 0
+    )
     try:
         compressed = agent.context_compressor.compress(messages, current_tokens=approx_tokens, focus_topic=focus_topic, force=force)
     except TypeError:
         # Plugin context engine with strict signature that doesn't accept
         # focus_topic / force — fall back to calling without them.
         compressed = agent.context_compressor.compress(messages, current_tokens=approx_tokens)
+    _compressions_after = int(
+        getattr(getattr(agent, "context_compressor", None), "compression_count", 0) or 0
+    )
+    _compression_succeeded = _compressions_after > _compressions_before
 
     if getattr(agent, "_ctx_trace_enabled", False):
         _p = agent._ctx_trace_pending
-        _p["compressed"] = True
+        _p["compression_attempted"] = True
+        _p["compressed"] = _compression_succeeded
         _p["msgs_before_compress"] = _compress_msgs_before
         _p["msgs_after_compress"] = len(compressed)
         _p["tokens_before_compress"] = approx_tokens or 0
