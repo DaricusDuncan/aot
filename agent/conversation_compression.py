@@ -431,6 +431,25 @@ def compress_context(
     except Exception as _me_err:
         logger.debug("memory manager on_session_switch (compression): %s", _me_err)
 
+    # Persist a cross-session handoff so the next session can resume from here.
+    try:
+        if getattr(agent, "_handoff_store", None) is not None:
+            from agent.session_handoff import handoff_from_compaction
+            _ho_summary = getattr(agent.context_compressor, "_previous_summary", "") or ""
+            _ho = handoff_from_compaction(
+                project=agent.session_id,
+                summary=_ho_summary,
+                active_task=getattr(agent, "_last_user_message", ""),
+                tool_output_db=getattr(
+                    getattr(agent, "tool_output_store", None), "db_path", None
+                ),
+                previous=getattr(agent, "_last_handoff", None),
+            )
+            agent._last_handoff = _ho
+            agent._handoff_store.write_handoff(_ho)
+    except Exception as _hof_err:
+        logger.debug("Handoff write failed (non-fatal): %s", _hof_err)
+
     # Warn on repeated compressions (quality degrades with each pass)
     _cc = agent.context_compressor.compression_count
     if _cc >= 2:

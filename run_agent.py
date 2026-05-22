@@ -1933,6 +1933,16 @@ class AIAgent:
             except Exception:
                 pass
 
+        # Close the tool-output eviction store and clear the singleton.
+        if getattr(self, "tool_output_store", None) is not None:
+            try:
+                from agent.tool_output_store import set_store
+                self.tool_output_store.close()
+                set_store(None)
+                self.tool_output_store = None
+            except Exception:
+                pass
+
     def commit_memory_session(self, messages: list = None) -> None:
         """Trigger end-of-session extraction without tearing providers down.
         Called when session_id rotates (e.g. /new, context compression);

@@ -14171,6 +14171,7 @@ def main(
     pass_session_id: bool = False,
     ignore_user_config: bool = False,
     ignore_rules: bool = False,
+    handoff: str = None,
 ):
     """
     Aot Agent CLI - Interactive AI Assistant
@@ -14458,6 +14459,22 @@ def main(
             cli._print_exit_summary()
         return
     
+    # Inject cross-session handoff seed messages when --handoff is used.
+    # Prepend before cli.run() so they appear as the first exchange in the
+    # transcript, keeping the system prompt cache key stable.
+    if handoff:
+        try:
+            from agent.session_handoff import HandoffStore, build_resume_messages
+            _hs = HandoffStore()
+            _ho = _hs.load_handoff(handoff)
+            if _ho is None:
+                print(f"No handoff found for project '{handoff}'.")
+                print(f"(Looked in ~/.aot/handoffs/{handoff}.json)")
+                return
+            cli.conversation_history = build_resume_messages(_ho) + cli.conversation_history
+        except Exception as _hoe:
+            print(f"Warning: could not load handoff for '{handoff}': {_hoe}")
+
     # Run interactive mode
     cli.run()
 

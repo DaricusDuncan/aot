@@ -1336,6 +1336,41 @@ def init_agent(
         )
     agent.compression_enabled = compression_enabled
 
+    # ── Tool-output eviction store ──
+    # Reversible eviction of stale heavy tool outputs (web fetches, browser
+    # snapshots, MCP responses). Full content is SQLite-persisted; the model
+    # sees a compact stub and can call restore_tool_output to get it back.
+    try:
+        from agent.tool_output_store import ToolOutputStore, EvictionConfig, set_store
+        _tool_output_cfg = _agent_cfg.get("tool_output", {}) if isinstance(_agent_cfg, dict) else {}
+        _tos_db = str(
+            agent.logs_dir / f"tool_outputs_{agent.session_id}.db"
+        )
+        agent.tool_output_store = ToolOutputStore(
+            db_path=_tos_db,
+            config=EvictionConfig(
+                enabled=_tool_output_cfg.get("eviction_enabled", True),
+                keep_recent_turns=int(_tool_output_cfg.get("keep_recent_turns", 20)),
+                min_evict_tokens=int(_tool_output_cfg.get("min_evict_tokens", 800)),
+            ),
+        )
+        set_store(agent.tool_output_store)
+    except Exception as _tos_err:
+        agent.tool_output_store = None
+        _ra().logger.debug("Tool output store init failed (non-fatal): %s", _tos_err)
+
+    # ── Cross-session handoff store ──
+    try:
+        from agent.session_handoff import HandoffStore
+        agent._handoff_store = HandoffStore()
+        agent._last_handoff = agent._handoff_store.load_handoff(agent.session_id)
+        agent._last_user_message: str = ""
+    except Exception as _hs_err:
+        agent._handoff_store = None
+        agent._last_handoff = None
+        agent._last_user_message = ""
+        _ra().logger.debug("Handoff store init failed (non-fatal): %s", _hs_err)
+
     # Reject models whose context window is below the minimum required
     # for reliable tool-calling workflows (64K tokens).
     from agent.model_metadata import MINIMUM_CONTEXT_LENGTH

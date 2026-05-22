@@ -768,6 +768,10 @@ class ContextCompressor(ContextEngine):
             # Skip already-deduplicated or previously-summarized results
             if content.startswith("[Duplicate tool output"):
                 continue
+            # Skip eviction stubs — overwriting them would destroy the restore key.
+            from agent.tool_output_store import STUB_MARKER
+            if content.startswith(STUB_MARKER):
+                continue
             # Only prune if the content is substantial (>200 chars)
             if len(content) > 200:
                 call_id = msg.get("tool_call_id", "")

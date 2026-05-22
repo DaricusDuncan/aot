@@ -1489,6 +1489,7 @@ def cmd_chat(args):
         "query": args.query,
         "image": getattr(args, "image", None),
         "resume": getattr(args, "resume", None),
+        "handoff": getattr(args, "handoff", None),
         "worktree": getattr(args, "worktree", False),
         "checkpoints": getattr(args, "checkpoints", False),
         "pass_session_id": getattr(args, "pass_session_id", False),

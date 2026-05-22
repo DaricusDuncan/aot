@@ -398,6 +398,9 @@ def run_conversation(
     messages.append(user_msg)
     current_turn_user_idx = len(messages) - 1
     agent._persist_user_message_idx = current_turn_user_idx
+    # Track for handoff so the active task is always the latest real request.
+    if isinstance(user_message, str) and not user_message.startswith("SESSION RESUMED"):
+        agent._last_user_message = user_message[:500]
     
     if not agent.quiet_mode:
         _print_preview = _summarize_user_message_for_log(user_message)
@@ -452,6 +455,12 @@ def run_conversation(
                 f">= {agent.context_compressor.threshold_tokens:,} threshold. "
                 "This may take a moment."
             )
+            # Evict stale heavy tool outputs before compression so the
+            # compressor sees a smaller middle section to summarise.
+            if getattr(agent, "tool_output_store", None) is not None:
+                _evict_turn = sum(1 for m in messages if m.get("role") == "user")
+                agent.tool_output_store.evict_stale_outputs(messages, _evict_turn)
+
             # May need multiple passes for very large sessions with small
             # context windows (each pass summarises the middle N turns).
             for _pass in range(3):
