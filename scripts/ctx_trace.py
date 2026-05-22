@@ -28,7 +28,7 @@ def _find_latest(sessions_dir: Path) -> Path | None:
     return candidates[-1] if candidates else None
 
 
-def _bar(pct: float | None, width: int = 30) -> str:
+def _bar(pct: float | None, width: int = 28) -> str:
     if pct is None:
         return " " * width
     filled = min(width, round(pct / 100 * width))
@@ -55,22 +55,39 @@ def report(trace_path: Path) -> None:
     print(f"\n── Context-Window Trace: {session_id} ──")
     print(f"   {len(data)} API calls | threshold {_fmt_k(threshold)} tokens\n")
 
+    # Pre-compute turns-since-last-compression for each entry.
+    # A compression event is detected when the compressions counter increases.
+    turns_since_compress: list[int | None] = []
+    last_compress_call = None
+    last_compress_count = 0
+    for e in data:
+        cc = e.get("compressions", 0)
+        if cc > last_compress_count:
+            last_compress_call = e["call"]
+            last_compress_count = cc
+        turns_since_compress.append(
+            e["call"] - last_compress_call if last_compress_call is not None else None
+        )
+
     # Header
     hdr = (
         f"{'Call':>4}  {'Msgs':>4}  {'Tokens':>7}  {'% Thresh':>8}  "
-        f"{'Evicted':>7}  {'Reclaimed':>9}  {'Compresses':>10}  Pressure"
+        f"{'Since▼':>6}  {'Evicted':>7}  {'Reclaimed':>9}  {'Compress':>9}  Pressure"
     )
     print(hdr)
     print("─" * len(hdr))
 
     total_evicted = 0
     total_reclaimed = 0
+    compress_cycles: list[int] = []  # turns per compression cycle
+    cycle_start_call = 1
 
-    for e in data:
+    for i, e in enumerate(data):
         pct = e.get("pct")
         evicted = e.get("evicted", 0)
         reclaimed = e.get("tokens_reclaimed", 0)
         compressed = e.get("compressed", False)
+        since = turns_since_compress[i]
         total_evicted += evicted
         total_reclaimed += reclaimed
 
@@ -79,15 +96,21 @@ def report(trace_path: Path) -> None:
             before = e.get("msgs_before_compress", "?")
             after = e.get("msgs_after_compress", "?")
             compress_marker = f"▼{before}→{after}"
+            cycle_turns = e["call"] - cycle_start_call
+            compress_cycles.append(cycle_turns)
+            cycle_start_call = e["call"]
+
+        since_str = f"+{since}" if since is not None else "—"
 
         row = (
             f"{e['call']:>4}  "
             f"{e['msgs']:>4}  "
             f"{_fmt_k(e['tokens']):>7}  "
             f"{(str(pct)+'%') if pct is not None else '—':>8}  "
+            f"{since_str:>6}  "
             f"{evicted if evicted else '·':>7}  "
             f"{_fmt_k(reclaimed) if reclaimed else '·':>9}  "
-            f"{compress_marker:>10}  "
+            f"{compress_marker:>9}  "
             f"{_bar(pct)}"
         )
         print(row)
@@ -103,6 +126,10 @@ def report(trace_path: Path) -> None:
     print("── Summary ──────────────────────────────")
     print(f"   Total API calls    : {len(data)}")
     print(f"   Total compressions : {compressions}")
+    if compress_cycles:
+        avg_runway = sum(compress_cycles) / len(compress_cycles)
+        print(f"   Avg runway/cycle   : {avg_runway:.0f} calls between compressions")
+        print(f"   Runway per cycle   : {' → '.join(str(c) for c in compress_cycles)} calls")
     print(f"   Total evictions    : {total_evicted} outputs, ~{_fmt_k(total_reclaimed)} tokens reclaimed")
     print(f"   Peak token usage   : {_fmt_k(peak_tok)} ({peak_pct:.0f}% of threshold)")
     if compressions == 0 and peak_pct >= 85:
