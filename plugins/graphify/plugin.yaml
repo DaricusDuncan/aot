@@ -1,0 +1,11 @@
+name: graphify
+version: 0.1.0
+description: "Graphify integration tools for building and querying project knowledge graphs."
+author: NousResearch
+kind: standalone
+provides_tools:
+  - graphify_build
+  - graphify_query
+  - graphify_path
+  - graphify_explain
+  - graphify_prs
