@@ -1,0 +1,5 @@
+name: hybrid
+version: 0.1.0
+description: "Readable hybrid context compression with safety checks."
+author: "Aot Agent"
+kind: context-engine

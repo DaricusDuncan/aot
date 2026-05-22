@@ -442,7 +442,8 @@ def run_conversation(
             tools=agent.tools or None,
         )
 
-        if _preflight_tokens >= agent.context_compressor.threshold_tokens:
+        _force_preflight = bool(getattr(agent.context_compressor, "force_override", False))
+        if _force_preflight or _preflight_tokens >= agent.context_compressor.threshold_tokens:
             logger.info(
                 "Preflight compression: ~%s tokens >= %s threshold (model %s, ctx %s)",
                 f"{_preflight_tokens:,}",

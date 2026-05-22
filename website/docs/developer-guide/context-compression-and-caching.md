@@ -72,6 +72,54 @@ in long gateway sessions.
 Located in `agent/context_compressor.py`. This is the **primary compression
 system** that runs inside the agent's tool loop with access to accurate,
 API-reported token counts.
+## Compression Trigger Logic (exact runtime paths)
+
+Compression is event/threshold driven, not timer-driven. Aot checks compression at multiple points:
+
+1. **Preflight before first API call in a turn** (`agent/conversation_loop.py`)
+   - Runs when compression is enabled and there is enough history to compress.
+   - Computes rough request tokens (messages + system prompt + tool schemas).
+   - Triggers compression if estimate is at/above threshold.
+   - For hybrid engine, `force_override` also triggers preflight compression.
+
+2. **In-loop check after each assistant/tool cycle** (`agent/conversation_loop.py`)
+   - Uses API-reported `prompt_tokens` when available; otherwise rough estimate fallback.
+   - Calls `context_compressor.should_compress(tokens)`.
+   - If true, runs `_compress_context(...)` and continues with compressed history.
+
+3. **Error-recovery compression on provider overflow responses** (`agent/conversation_loop.py`)
+   - Context-overflow and payload-too-large paths attempt compression immediately and retry.
+   - Includes bounded retry attempts to avoid infinite loops.
+
+4. **Manual compression command**
+   - CLI: `/compress [focus]` (`cli.py`)
+   - Gateway: `/compress [focus]` (`gateway/run.py`)
+   - These run compression immediately regardless of current threshold pressure.
+
+5. **Gateway session hygiene fallback** (`gateway/run.py`)
+   - Before agent execution, gateway can auto-compress large stored transcripts.
+   - Fires when transcript token estimate crosses hygiene threshold or message hard-limit.
+
+### Hybrid force override toggle
+
+For `context.engine: hybrid`, you can force compression checks to always fire whenever there is compressible content.
+
+```yaml
+context:
+  engine: hybrid
+  hybrid:
+    force_override: true
+```
+
+Or via environment variable:
+
+```bash
+AOT_FORCE_COMPRESSION_OVERRIDE=true
+```
+
+When enabled, hybrid compression bypasses the normal token-threshold gate in both:
+- `should_compress()` (in-loop checks)
+- preflight trigger path (turn start)
 
 
 ## Configuration

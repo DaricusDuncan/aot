@@ -1185,6 +1185,19 @@ DEFAULT_CONFIG = {
     # a plugin in plugins/context_engine/<name>/ or ~/.aot/plugins/.
     "context": {
         "engine": "compressor",
+        "hybrid": {
+            "threshold": 0.50,            # trigger compression when usage exceeds this ratio
+            "protect_first_n": 3,         # preserve first non-system messages verbatim
+            "protect_last_n": 8,          # preserve most recent messages verbatim
+            "target_ratio": 0.35,         # target compressed middle size as fraction of threshold
+            "sentence_keep_ratio": 0.55,  # sentence-level keep ratio in middle-window pruning
+            "token_pruning_enabled": True,
+            "token_keep_ratio": 0.85,     # keep this fraction of non-critical words
+            "similarity_floor": 0.35,     # fallback when compressed text diverges too far
+            "max_summary_chars": 12000,
+            "max_entities_check": 40,     # max critical entities required to survive compression
+            "force_override": False,      # always force compression when there is compressible content
+        },
     },
 
     # Persistent memory -- bounded curated memory injected into system prompt
