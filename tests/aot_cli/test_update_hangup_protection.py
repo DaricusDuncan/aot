@@ -213,8 +213,12 @@ class TestInstallHangupProtection:
         try:
             # On Windows (no SIGHUP) we still wrap stdio and create the log.
             assert state["installed"] is True
-            assert isinstance(sys.stdout, _UpdateOutputStream)
-            assert isinstance(sys.stderr, _UpdateOutputStream)
+            # In the full suite, some tests reload ``aot_cli.main``; that can
+            # produce a distinct class object with the same runtime behavior.
+            # Assert by structural/runtime contract instead of strict class
+            # identity to avoid cross-module-reload brittleness.
+            assert type(sys.stdout).__name__ == "_UpdateOutputStream"
+            assert type(sys.stderr).__name__ == "_UpdateOutputStream"
             assert state["log_file"] is not None
 
             sys.stdout.write("checking mirror\n")

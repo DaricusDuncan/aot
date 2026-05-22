@@ -659,6 +659,34 @@ class ShellFileOperations(FileOperations):
         """Escape a string for safe use in shell commands."""
         # Use single quotes and escape any single quotes in the string
         return "'" + arg.replace("'", "'\"'\"'") + "'"
+
+    def _check_git_baseline(self, path: str) -> Optional[str]:
+        """Return a warning when writing in a dirty git working tree.
+
+        Best-effort only: returns ``None`` when git is unavailable or the path
+        is outside a git work tree.
+        """
+        if not self._has_command("git"):
+            return None
+
+        target_dir = os.path.dirname(path) or self.cwd
+        in_repo = self._exec("git rev-parse --is-inside-work-tree", cwd=target_dir)
+        if in_repo.exit_code != 0 or in_repo.stdout.strip().lower() != "true":
+            return None
+
+        branch_result = self._exec("git rev-parse --abbrev-ref HEAD", cwd=target_dir)
+        branch = branch_result.stdout.strip() if branch_result.exit_code == 0 else ""
+        if not branch:
+            branch = "unknown"
+
+        status_result = self._exec("git status --porcelain", cwd=target_dir)
+        if status_result.exit_code != 0 or not status_result.stdout.strip():
+            return None
+
+        return (
+            "Git working tree is dirty on branch "
+            f"'{branch}'. Write completed against uncommitted changes."
+        )
     
     def _unified_diff(self, old_content: str, new_content: str, filename: str) -> str:
         """Generate unified diff between old and new content."""
@@ -988,11 +1016,14 @@ class ShellFileOperations(FileOperations):
             if block:
                 lsp_diagnostics = block
 
+        warning = self._check_git_baseline(path)
+
         return WriteResult(
             bytes_written=bytes_written,
             dirs_created=dirs_created,
             lint=lint_result.to_dict() if lint_result else None,
             lsp_diagnostics=lsp_diagnostics,
+            warning=warning,
         )
     
     # =========================================================================

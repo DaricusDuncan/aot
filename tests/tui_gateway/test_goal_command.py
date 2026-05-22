@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib
 import threading
+import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -54,7 +55,9 @@ def server(aot_home):
 @pytest.fixture()
 def session(server):
     sid = "sid-test"
-    session_key = "tui-goal-session-1"
+    # Use a unique session key per test so state_meta goal rows cannot leak
+    # across tests even if an external cache/override keeps a shared DB alive.
+    session_key = f"tui-goal-session-{uuid.uuid4()}"
     s = {
         "session_key": session_key,
         "history": [],
