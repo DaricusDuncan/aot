@@ -156,6 +156,16 @@ def build_top_level_parser():
         help="Resume a session by name, or the most recent if no name given",
     )
     parser.add_argument(
+        "--handoff",
+        metavar="PROJECT",
+        default=None,
+        help=(
+            "Resume from a cross-session handoff summary for PROJECT "
+            "(reads ~/.aot/handoffs/<project>.json). Use after a hard reset "
+            "to pick up where the previous session left off."
+        ),
+    )
+    parser.add_argument(
         "--worktree",
         "-w",
         action="store_true",

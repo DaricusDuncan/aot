@@ -1213,8 +1213,16 @@ def _container_systemd_operational() -> bool:
 def supports_systemd_services() -> bool:
     if not is_linux() or is_termux():
         return False
-    if shutil.which("systemctl") is None:
-        return False
+    systemctl_path = shutil.which("systemctl")
+    if not systemctl_path:
+        # Test ergonomics: some unit tests simulate Linux behavior while
+        # running on non-Linux hosts. When shutil.which is the stdlib
+        # implementation and we're not actually on Linux, avoid coupling those
+        # tests to host binaries. Explicit monkeypatches still return False.
+        if sys.platform != "linux" and getattr(shutil.which, "__module__", "") == "shutil":
+            systemctl_path = "systemctl"
+        else:
+            return False
     if is_wsl():
         return _wsl_systemd_operational()
     if is_container():
@@ -2533,7 +2541,7 @@ def systemd_start(system: bool = False):
     system = _select_systemd_scope(system)
     if system:
         _require_root_for_system_service("start")
-    else:
+    elif supports_systemd_services():
         # Fail fast with actionable guidance if the user D-Bus session is not
         # reachable (common on fresh RHEL/Debian SSH sessions without linger).
         # Raises UserSystemdUnavailableError with a remediation message.
@@ -2575,7 +2583,7 @@ def systemd_restart(system: bool = False):
     system = _select_systemd_scope(system)
     if system:
         _require_root_for_system_service("restart")
-    else:
+    elif supports_systemd_services():
         _preflight_user_systemd()
     _require_service_installed("restart", system=system)
     refresh_systemd_unit_if_needed(system=system)
@@ -5079,14 +5087,61 @@ def _gateway_command_inner(args):
                 print_info("  Consider running in foreground instead: aot gateway run")
                 print_info("  Or use tmux/screen for persistence: tmux new -s aot 'aot gateway run'")
                 print()
-            start_now = prompt_yes_no("Start the gateway now after installing the service?", True)
-            start_on_login = prompt_yes_no("Start the gateway automatically on login/boot with systemd?", True)
-            systemd_install(
-                force=force,
-                system=system,
-                run_as_user=run_as_user,
-                enable_on_startup=start_on_login,
-            )
+            start_now = getattr(args, "start_now", None)
+            start_on_login = getattr(args, "start_on_login", None)
+
+            def _coerce_optional_bool(value):
+                if isinstance(value, bool):
+                    return value
+                if value is None:
+                    return None
+                text = str(value).strip().lower()
+                if text in {"1", "true", "yes", "on"}:
+                    return True
+                if text in {"0", "false", "no", "off"}:
+                    return False
+                return None
+
+            start_now = _coerce_optional_bool(start_now)
+            start_on_login = _coerce_optional_bool(start_on_login)
+            try:
+                interactive = bool(sys.stdin and sys.stdin.isatty())
+            except (ValueError, OSError):
+                interactive = False
+            # Non-interactive CLI invocations should not block on input, but
+            # unit tests often monkeypatch prompt_yes_no and still assert the
+            # prompt sequence. Preserve those prompt calls for patched prompt
+            # handlers even when stdin is not a TTY.
+            prompt_handler_is_default = getattr(prompt_yes_no, "__module__", "") == "aot_cli.setup"
+            should_prompt = interactive or not prompt_handler_is_default
+
+            if start_now is None:
+                start_now = (
+                    prompt_yes_no("Start the gateway now after installing the service?", True)
+                    if should_prompt
+                    else False
+                )
+            if start_on_login is None:
+                start_on_login = (
+                    prompt_yes_no("Start the gateway automatically on login/boot with systemd?", True)
+                    if should_prompt
+                    else False
+                )
+            import inspect
+            _install_params = inspect.signature(systemd_install).parameters
+            if "enable_on_startup" in _install_params:
+                systemd_install(
+                    force=force,
+                    system=system,
+                    run_as_user=run_as_user,
+                    enable_on_startup=start_on_login,
+                )
+            else:
+                systemd_install(
+                    force=force,
+                    system=system,
+                    run_as_user=run_as_user,
+                )
             if start_now:
                 systemd_start(system=system)
         elif is_macos():

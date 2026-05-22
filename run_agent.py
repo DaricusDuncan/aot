@@ -1933,6 +1933,35 @@ class AIAgent:
             except Exception:
                 pass
 
+        # Close the tool-output eviction store and clear the singleton.
+        if getattr(self, "tool_output_store", None) is not None:
+            try:
+                from agent.tool_output_store import set_store
+                self.tool_output_store.close()
+                set_store(None)
+                self.tool_output_store = None
+            except Exception:
+                pass
+
+        # Dump context-window trace to JSON and print report if tracing was enabled.
+        if getattr(self, "_ctx_trace_enabled", False) and getattr(self, "_ctx_trace", None):
+            try:
+                import json as _json
+                _trace_path = self.logs_dir / f"ctx_trace_{self.session_id}.json"
+                with open(_trace_path, "w", encoding="utf-8") as _tf:
+                    _json.dump(self._ctx_trace, _tf, indent=2)
+                logger.info("Context trace written to %s", _trace_path)
+                from pathlib import Path as _Path
+                import importlib.util as _ilu
+                _script = _Path(__file__).parent / "scripts" / "ctx_trace.py"
+                if _script.exists():
+                    _spec = _ilu.spec_from_file_location("ctx_trace", _script)
+                    _mod = _ilu.module_from_spec(_spec)
+                    _spec.loader.exec_module(_mod)
+                    _mod.report(_trace_path)
+            except Exception as _te:
+                logger.debug("ctx_trace report failed: %s", _te)
+
     def commit_memory_session(self, messages: list = None) -> None:
         """Trigger end-of-session extraction without tearing providers down.
         Called when session_id rotates (e.g. /new, context compression);

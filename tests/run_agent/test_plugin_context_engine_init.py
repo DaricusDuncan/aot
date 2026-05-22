@@ -3,10 +3,12 @@
 Regression test for #9071 — plugin engines were never initialized with
 context_length, causing the CLI status bar to show 'ctx --'.
 """
+import os
 
 from unittest.mock import MagicMock, patch
 
 from agent.context_engine import ContextEngine
+from agent.context_compressor import ContextCompressor
 
 
 class _StubEngine(ContextEngine):
@@ -89,3 +91,57 @@ def test_plugin_engine_update_model_args():
     assert "provider" in kw
     # Should NOT pass api_mode — the ABC doesn't accept it
     assert "api_mode" not in kw
+
+
+def test_context_engine_env_override_enables_plugin_engine():
+    """AOT_CONTEXT_ENGINE should override config context.engine."""
+    engine = _StubEngine()
+    cfg = {"context": {"engine": "compressor"}, "agent": {}}
+
+    with (
+        patch.dict(os.environ, {"AOT_CONTEXT_ENGINE": "stub"}, clear=False),
+        patch("aot_cli.config.load_config", return_value=cfg),
+        patch("plugins.context_engine.load_context_engine", return_value=engine),
+        patch("agent.model_metadata.get_model_context_length", return_value=200_000),
+        patch("run_agent.get_tool_definitions", return_value=[]),
+        patch("run_agent.check_toolset_requirements", return_value={}),
+        patch("run_agent.OpenAI"),
+    ):
+        from run_agent import AIAgent
+
+        agent = AIAgent(
+            api_key="test-key-1234567890",
+            base_url="https://openrouter.ai/api/v1",
+            quiet_mode=True,
+            skip_context_files=True,
+            skip_memory=True,
+        )
+
+    assert agent.context_compressor is engine
+
+
+def test_context_engine_env_override_can_force_builtin_compressor():
+    """AOT_CONTEXT_ENGINE=compressor should force built-in compressor."""
+    engine = _StubEngine()
+    cfg = {"context": {"engine": "stub"}, "agent": {}}
+
+    with (
+        patch.dict(os.environ, {"AOT_CONTEXT_ENGINE": "compressor"}, clear=False),
+        patch("aot_cli.config.load_config", return_value=cfg),
+        patch("plugins.context_engine.load_context_engine", return_value=engine),
+        patch("agent.model_metadata.get_model_context_length", return_value=200_000),
+        patch("run_agent.get_tool_definitions", return_value=[]),
+        patch("run_agent.check_toolset_requirements", return_value={}),
+        patch("run_agent.OpenAI"),
+    ):
+        from run_agent import AIAgent
+
+        agent = AIAgent(
+            api_key="test-key-1234567890",
+            base_url="https://openrouter.ai/api/v1",
+            quiet_mode=True,
+            skip_context_files=True,
+            skip_memory=True,
+        )
+
+    assert isinstance(agent.context_compressor, ContextCompressor)

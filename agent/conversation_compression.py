@@ -299,12 +299,28 @@ def compress_context(
         except Exception:
             pass
 
+    _compress_msgs_before = len(messages)
+    _compressions_before = int(
+        getattr(getattr(agent, "context_compressor", None), "compression_count", 0) or 0
+    )
     try:
         compressed = agent.context_compressor.compress(messages, current_tokens=approx_tokens, focus_topic=focus_topic, force=force)
     except TypeError:
         # Plugin context engine with strict signature that doesn't accept
         # focus_topic / force — fall back to calling without them.
         compressed = agent.context_compressor.compress(messages, current_tokens=approx_tokens)
+    _compressions_after = int(
+        getattr(getattr(agent, "context_compressor", None), "compression_count", 0) or 0
+    )
+    _compression_succeeded = _compressions_after > _compressions_before
+
+    if getattr(agent, "_ctx_trace_enabled", False):
+        _p = agent._ctx_trace_pending
+        _p["compression_attempted"] = True
+        _p["compressed"] = _compression_succeeded
+        _p["msgs_before_compress"] = _compress_msgs_before
+        _p["msgs_after_compress"] = len(compressed)
+        _p["tokens_before_compress"] = approx_tokens or 0
 
     # If compression aborted (aux LLM failed to produce a usable summary)
     # the compressor returns the input messages unchanged.  Surface the
@@ -430,6 +446,25 @@ def compress_context(
             )
     except Exception as _me_err:
         logger.debug("memory manager on_session_switch (compression): %s", _me_err)
+
+    # Persist a cross-session handoff so the next session can resume from here.
+    try:
+        if getattr(agent, "_handoff_store", None) is not None:
+            from agent.session_handoff import handoff_from_compaction
+            _ho_summary = getattr(agent.context_compressor, "_previous_summary", "") or ""
+            _ho = handoff_from_compaction(
+                project=agent.session_id,
+                summary=_ho_summary,
+                active_task=getattr(agent, "_last_user_message", ""),
+                tool_output_db=getattr(
+                    getattr(agent, "tool_output_store", None), "db_path", None
+                ),
+                previous=getattr(agent, "_last_handoff", None),
+            )
+            agent._last_handoff = _ho
+            agent._handoff_store.write_handoff(_ho)
+    except Exception as _hof_err:
+        logger.debug("Handoff write failed (non-fatal): %s", _hof_err)
 
     # Warn on repeated compressions (quality degrades with each pass)
     _cc = agent.context_compressor.compression_count

@@ -687,6 +687,11 @@ context:
 ```
 
 Plugin engines are **never auto-activated** — you must explicitly set `context.engine` to the plugin name. Available engines can be browsed and selected via `aot plugins` → Provider Plugins → Context Engine.
+For one-off overrides (without editing config), set `AOT_CONTEXT_ENGINE`:
+
+```bash
+AOT_CONTEXT_ENGINE=hybrid aot
+```
 
 See [Memory Providers](/docs/user-guide/features/memory-providers) for the analogous single-select system for memory plugins.
 

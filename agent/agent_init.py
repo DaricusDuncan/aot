@@ -1103,6 +1103,12 @@ def init_agent(
             compression_threshold = _model_cthresh
     except Exception:
         pass
+    # AOT_COMPRESS_THRESHOLD overrides config + model defaults (e.g. 0.15 for testing)
+    if os.environ.get("AOT_COMPRESS_THRESHOLD"):
+        try:
+            compression_threshold = float(os.environ["AOT_COMPRESS_THRESHOLD"])
+        except ValueError:
+            pass
     compression_enabled = str(_compression_cfg.get("enabled", True)).lower() in {"true", "1", "yes"}
     compression_target_ratio = float(_compression_cfg.get("target_ratio", 0.20))
     compression_protect_last = int(_compression_cfg.get("protect_last_n", 20))
@@ -1266,11 +1272,14 @@ def init_agent(
     # 4. Fall back to built-in ContextCompressor
     _selected_engine = None
     _engine_name = "compressor"  # default
+    _engine_env = os.getenv("AOT_CONTEXT_ENGINE", "").strip()
     try:
         _ctx_cfg = _agent_cfg.get("context", {}) if isinstance(_agent_cfg, dict) else {}
         _engine_name = _ctx_cfg.get("engine", "compressor") or "compressor"
     except Exception:
         pass
+    if _engine_env:
+        _engine_name = _engine_env
 
     if _engine_name != "compressor":
         # Try loading from plugins/context_engine/<name>/
@@ -1335,6 +1344,56 @@ def init_agent(
             abort_on_summary_failure=compression_abort_on_summary_failure,
         )
     agent.compression_enabled = compression_enabled
+
+    # ── Tool-output eviction store ──
+    # Reversible eviction of stale heavy tool outputs (web fetches, browser
+    # snapshots, MCP responses). Full content is SQLite-persisted; the model
+    # sees a compact stub and can call restore_tool_output to get it back.
+    try:
+        from agent.tool_output_store import ToolOutputStore, EvictionConfig, set_store
+        _tool_output_cfg = _agent_cfg.get("tool_output", {}) if isinstance(_agent_cfg, dict) else {}
+        _tos_db = str(
+            agent.logs_dir / f"tool_outputs_{agent.session_id}.db"
+        )
+        _evict_recent = int(os.environ.get("AOT_EVICT_RECENT_TURNS") or _tool_output_cfg.get("keep_recent_turns", 20))
+        _evict_min_tok = int(os.environ.get("AOT_EVICT_MIN_TOKENS") or _tool_output_cfg.get("min_evict_tokens", 800))
+        agent.tool_output_store = ToolOutputStore(
+            db_path=_tos_db,
+            config=EvictionConfig(
+                enabled=_tool_output_cfg.get("eviction_enabled", True),
+                keep_recent_turns=_evict_recent,
+                min_evict_tokens=_evict_min_tok,
+            ),
+        )
+        set_store(agent.tool_output_store)
+    except Exception as _tos_err:
+        agent.tool_output_store = None
+        _ra().logger.debug("Tool output store init failed (non-fatal): %s", _tos_err)
+
+    # ── Cross-session handoff store ──
+    try:
+        from agent.session_handoff import HandoffStore
+        agent._handoff_store = HandoffStore()
+        agent._last_handoff = agent._handoff_store.load_handoff(agent.session_id)
+        agent._last_user_message: str = ""
+    except Exception as _hs_err:
+        agent._handoff_store = None
+        agent._last_handoff = None
+        agent._last_user_message = ""
+        _ra().logger.debug("Handoff store init failed (non-fatal): %s", _hs_err)
+
+    # ── Context-window trace ──
+    # Passive per-call log for observing token pressure, eviction, and
+    # compression across a full session. Written to JSON at shutdown.
+    # Enable via AOT_CTX_TRACE=1 or config: context.trace: true
+    _trace_enabled = (
+        os.environ.get("AOT_CTX_TRACE") == "1"
+        or (_agent_cfg.get("context", {}) if isinstance(_agent_cfg, dict) else {}).get("trace", False)
+    )
+    agent._ctx_trace_enabled = _trace_enabled
+    agent._ctx_trace: list = []
+    # Accumulates eviction/compression stats for the *next* API call entry.
+    agent._ctx_trace_pending: dict = {}
 
     # Reject models whose context window is below the minimum required
     # for reliable tool-calling workflows (64K tokens).
