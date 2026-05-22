@@ -1,0 +1,14 @@
+{
+  "name": "graphify",
+  "label": "Graphify",
+  "description": "Interactive Graphify viewer and live context-window trace panel.",
+  "icon": "Database",
+  "version": "0.1.0",
+  "tab": {
+    "path": "/graphify",
+    "position": "after:plugins"
+  },
+  "entry": "dist/index.js",
+  "css": "dist/style.css",
+  "api": "plugin_api.py"
+}

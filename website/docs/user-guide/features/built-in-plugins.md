@@ -59,7 +59,7 @@ The repo ships these bundled plugins under `plugins/`. All are opt-in — enable
 | `observability/langfuse` | hooks | Trace turns / LLM calls / tools to [Langfuse](https://langfuse.com) |
 | `spotify` | backend (7 tools) | Native Spotify playback, queue, search, playlists, albums, library |
 | `google_meet` | standalone | Join Meet calls, live-caption transcription, optional realtime duplex audio |
-| `graphify` | standalone (5 tools) | Build and query repository knowledge graphs (`graphify_build`, `graphify_query`, `graphify_path`, `graphify_explain`, `graphify_prs`) |
+| `graphify` | standalone + dashboard tab | Build/query repository knowledge graphs and explore them visually with interactive node/edge navigation plus a live context-window trace panel |
 | `image_gen/openai` | image backend | OpenAI `gpt-image-2` image generation backend (alternative to FAL) |
 | `image_gen/openai-codex` | image backend | OpenAI image generation via Codex OAuth |
 | `image_gen/xai` | image backend | xAI `grok-2-image` backend |
@@ -203,7 +203,7 @@ The agent kicks off the meeting join, streams the transcription back into its co
 
 ### graphify
 
-Adds a native Graphify toolset so the agent can build and query a graph representation of a codebase directly from chat.
+Adds a native Graphify toolset so the agent can build and query a graph representation of a codebase directly from chat, plus a dashboard tab (`/graphify`) with interactive graph exploration (clickable nodes, zoom/pan, relationship inspection) and a live context-window trace panel.
 
 **What it adds:**
 
