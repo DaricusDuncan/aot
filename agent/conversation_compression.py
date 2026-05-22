@@ -299,12 +299,20 @@ def compress_context(
         except Exception:
             pass
 
+    _compress_msgs_before = len(messages)
     try:
         compressed = agent.context_compressor.compress(messages, current_tokens=approx_tokens, focus_topic=focus_topic, force=force)
     except TypeError:
         # Plugin context engine with strict signature that doesn't accept
         # focus_topic / force — fall back to calling without them.
         compressed = agent.context_compressor.compress(messages, current_tokens=approx_tokens)
+
+    if getattr(agent, "_ctx_trace_enabled", False):
+        _p = agent._ctx_trace_pending
+        _p["compressed"] = True
+        _p["msgs_before_compress"] = _compress_msgs_before
+        _p["msgs_after_compress"] = len(compressed)
+        _p["tokens_before_compress"] = approx_tokens or 0
 
     # If compression aborted (aux LLM failed to produce a usable summary)
     # the compressor returns the input messages unchanged.  Surface the

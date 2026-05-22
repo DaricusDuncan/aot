@@ -1371,6 +1371,19 @@ def init_agent(
         agent._last_user_message = ""
         _ra().logger.debug("Handoff store init failed (non-fatal): %s", _hs_err)
 
+    # ── Context-window trace ──
+    # Passive per-call log for observing token pressure, eviction, and
+    # compression across a full session. Written to JSON at shutdown.
+    # Enable via AOT_CTX_TRACE=1 or config: context.trace: true
+    _trace_enabled = (
+        os.environ.get("AOT_CTX_TRACE") == "1"
+        or (_agent_cfg.get("context", {}) if isinstance(_agent_cfg, dict) else {}).get("trace", False)
+    )
+    agent._ctx_trace_enabled = _trace_enabled
+    agent._ctx_trace: list = []
+    # Accumulates eviction/compression stats for the *next* API call entry.
+    agent._ctx_trace_pending: dict = {}
+
     # Reject models whose context window is below the minimum required
     # for reliable tool-calling workflows (64K tokens).
     from agent.model_metadata import MINIMUM_CONTEXT_LENGTH

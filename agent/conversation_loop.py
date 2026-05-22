@@ -459,7 +459,11 @@ def run_conversation(
             # compressor sees a smaller middle section to summarise.
             if getattr(agent, "tool_output_store", None) is not None:
                 _evict_turn = sum(1 for m in messages if m.get("role") == "user")
-                agent.tool_output_store.evict_stale_outputs(messages, _evict_turn)
+                _evict_stats = agent.tool_output_store.evict_stale_outputs(messages, _evict_turn)
+                if getattr(agent, "_ctx_trace_enabled", False) and _evict_stats.evicted_count:
+                    _p = agent._ctx_trace_pending
+                    _p["evicted"] = _p.get("evicted", 0) + _evict_stats.evicted_count
+                    _p["tokens_reclaimed"] = _p.get("tokens_reclaimed", 0) + _evict_stats.tokens_reclaimed
 
             # May need multiple passes for very large sessions with small
             # context windows (each pass summarises the middle N turns).
@@ -892,7 +896,28 @@ def run_conversation(
         # Calculate approximate request size for logging
         total_chars = sum(len(str(msg)) for msg in api_messages)
         approx_tokens = estimate_messages_tokens_rough(api_messages)
-        
+
+        # Context-window trace entry (enabled via AOT_CTX_TRACE=1)
+        if getattr(agent, "_ctx_trace_enabled", False):
+            import time as _t
+            _threshold = getattr(
+                getattr(agent, "context_compressor", None), "threshold_tokens", 0
+            )
+            _entry = {
+                "call": api_call_count,
+                "msgs": len(api_messages),
+                "tokens": approx_tokens,
+                "threshold": _threshold,
+                "pct": round(100 * approx_tokens / _threshold, 1) if _threshold else None,
+                "compressions": getattr(
+                    getattr(agent, "context_compressor", None), "compression_count", 0
+                ),
+                "ts": _t.time(),
+            }
+            _entry.update(agent._ctx_trace_pending)
+            agent._ctx_trace_pending = {}
+            agent._ctx_trace.append(_entry)
+
         # Thinking spinner for quiet mode (animated during API call)
         thinking_spinner = None
         

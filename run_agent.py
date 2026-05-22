@@ -1943,6 +1943,17 @@ class AIAgent:
             except Exception:
                 pass
 
+        # Dump context-window trace to JSON if tracing was enabled.
+        if getattr(self, "_ctx_trace_enabled", False) and getattr(self, "_ctx_trace", None):
+            try:
+                import json as _json
+                _trace_path = self.logs_dir / f"ctx_trace_{self.session_id}.json"
+                with open(_trace_path, "w", encoding="utf-8") as _tf:
+                    _json.dump(self._ctx_trace, _tf, indent=2)
+                logger.info("Context trace written to %s", _trace_path)
+            except Exception as _te:
+                logger.debug("ctx_trace dump failed: %s", _te)
+
     def commit_memory_session(self, messages: list = None) -> None:
         """Trigger end-of-session extraction without tearing providers down.
         Called when session_id rotates (e.g. /new, context compression);
