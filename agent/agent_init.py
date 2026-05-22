@@ -1103,6 +1103,12 @@ def init_agent(
             compression_threshold = _model_cthresh
     except Exception:
         pass
+    # AOT_COMPRESS_THRESHOLD overrides config + model defaults (e.g. 0.15 for testing)
+    if os.environ.get("AOT_COMPRESS_THRESHOLD"):
+        try:
+            compression_threshold = float(os.environ["AOT_COMPRESS_THRESHOLD"])
+        except ValueError:
+            pass
     compression_enabled = str(_compression_cfg.get("enabled", True)).lower() in {"true", "1", "yes"}
     compression_target_ratio = float(_compression_cfg.get("target_ratio", 0.20))
     compression_protect_last = int(_compression_cfg.get("protect_last_n", 20))
@@ -1346,12 +1352,14 @@ def init_agent(
         _tos_db = str(
             agent.logs_dir / f"tool_outputs_{agent.session_id}.db"
         )
+        _evict_recent = int(os.environ.get("AOT_EVICT_RECENT_TURNS") or _tool_output_cfg.get("keep_recent_turns", 20))
+        _evict_min_tok = int(os.environ.get("AOT_EVICT_MIN_TOKENS") or _tool_output_cfg.get("min_evict_tokens", 800))
         agent.tool_output_store = ToolOutputStore(
             db_path=_tos_db,
             config=EvictionConfig(
                 enabled=_tool_output_cfg.get("eviction_enabled", True),
-                keep_recent_turns=int(_tool_output_cfg.get("keep_recent_turns", 20)),
-                min_evict_tokens=int(_tool_output_cfg.get("min_evict_tokens", 800)),
+                keep_recent_turns=_evict_recent,
+                min_evict_tokens=_evict_min_tok,
             ),
         )
         set_store(agent.tool_output_store)
