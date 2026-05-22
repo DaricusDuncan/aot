@@ -160,3 +160,84 @@ class TestCompressionBoundaryHook:
             )
             assert compressed
             assert agent.session_id != original_sid
+
+    def test_ctx_trace_marks_unsuccessful_compression_as_not_compressed(self):
+        """Trace should report compressed=False when compression_count does not increase."""
+        from run_agent import AIAgent
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}):
+            agent = AIAgent(
+                api_key="test-key",
+                base_url="https://openrouter.ai/api/v1",
+                model="test/model",
+                quiet_mode=True,
+                session_db=None,
+                session_id="trace-session",
+                skip_context_files=True,
+                skip_memory=True,
+            )
+
+        compressor = MagicMock()
+        compressor.compress.return_value = [{"role": "user", "content": "tail"}]
+        compressor.compression_count = 0
+        compressor.last_prompt_tokens = 0
+        compressor.last_completion_tokens = 0
+        compressor._last_summary_error = None
+        compressor._last_compress_aborted = False
+        agent.context_compressor = compressor
+
+        agent._ctx_trace_enabled = True
+        agent._ctx_trace_pending = {}
+
+        agent._compress_context(
+            [{"role": "user", "content": "m"}], "sys", approx_tokens=1234
+        )
+
+        assert agent._ctx_trace_pending["compression_attempted"] is True
+        assert agent._ctx_trace_pending["compressed"] is False
+        assert agent._ctx_trace_pending["msgs_before_compress"] == 1
+        assert agent._ctx_trace_pending["msgs_after_compress"] == 1
+        assert agent._ctx_trace_pending["tokens_before_compress"] == 1234
+
+    def test_ctx_trace_marks_successful_compression_as_compressed(self):
+        """Trace should report compressed=True when compression_count increases."""
+        from run_agent import AIAgent
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}):
+            agent = AIAgent(
+                api_key="test-key",
+                base_url="https://openrouter.ai/api/v1",
+                model="test/model",
+                quiet_mode=True,
+                session_db=None,
+                session_id="trace-session",
+                skip_context_files=True,
+                skip_memory=True,
+            )
+
+        compressor = MagicMock()
+        compressor.compression_count = 0
+        compressor.last_prompt_tokens = 0
+        compressor.last_completion_tokens = 0
+        compressor._last_summary_error = None
+        compressor._last_compress_aborted = False
+
+        def _compress(*args, **kwargs):
+            compressor.compression_count += 1
+            return [{"role": "user", "content": "summary"}]
+
+        compressor.compress.side_effect = _compress
+        agent.context_compressor = compressor
+
+        agent._ctx_trace_enabled = True
+        agent._ctx_trace_pending = {}
+
+        agent._compress_context(
+            [{"role": "user", "content": "m1"}, {"role": "assistant", "content": "m2"}],
+            "sys",
+            approx_tokens=5678,
+        )
+
+        assert agent._ctx_trace_pending["compression_attempted"] is True
+        assert agent._ctx_trace_pending["compressed"] is True
+        assert agent._ctx_trace_pending["msgs_before_compress"] == 2
+        assert agent._ctx_trace_pending["msgs_after_compress"] == 1
+        assert agent._ctx_trace_pending["tokens_before_compress"] == 5678
