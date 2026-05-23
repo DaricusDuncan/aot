@@ -10,7 +10,7 @@ The bundled `graphify` plugin adds native tools for building and exploring a rep
 
 ## Prerequisites
 
-- The `graphify` CLI is installed and available on your PATH.
+- Vendored Graphify source exists under `vendor/graphify` in this repository.
 - Graphify backend credentials are configured for the semantic backend you plan to use.
 
 ## Enable the plugin
@@ -74,6 +74,6 @@ For PR-focused graph analysis, use:
 
 ## Troubleshooting
 
-- `graphify_not_installed`: install Graphify and ensure `graphify` resolves on PATH.
+- `graphify_not_available`: confirm `vendor/graphify` exists and is readable from your checkout.
 - backend/auth errors during `extract`: verify your Graphify backend credentials and chosen backend/model settings.
 - no output graph files: rerun with `mode: "extract"` first, then use `update` for incremental refreshes.

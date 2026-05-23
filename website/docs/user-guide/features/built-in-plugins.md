@@ -215,7 +215,7 @@ Adds a native Graphify toolset so the agent can build and query a graph represen
 
 **Prerequisites:**
 
-- `graphify` CLI available on PATH
+- vendored Graphify source present in this repo under `vendor/graphify`
 - backend credentials configured for your chosen Graphify semantic backend
 
 **Enable:**

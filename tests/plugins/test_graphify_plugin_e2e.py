@@ -1,6 +1,6 @@
 """Opt-in e2e smoke test for the bundled Graphify plugin.
 
-This test executes the real Graphify CLI through the plugin handler and verifies
+This test executes the vendored Graphify module through the plugin handler and verifies
 that graph generation succeeds on a tiny fixture repository.
 
 Run manually:
@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 from pathlib import Path
 
 import pytest
@@ -20,13 +19,11 @@ from plugins.graphify.tools import handle_graphify_build
 
 
 LIVE = os.environ.get("GRAPHIFY_E2E") == "1"
-HAS_GRAPHIFY = shutil.which("graphify") is not None
 GRAPHIFY_BACKEND = os.environ.get("GRAPHIFY_E2E_BACKEND", "").strip()
 GRAPHIFY_MODEL = os.environ.get("GRAPHIFY_E2E_MODEL", "").strip()
 
 pytestmark = [
     pytest.mark.skipif(not LIVE, reason="live-only — set GRAPHIFY_E2E=1"),
-    pytest.mark.skipif(not HAS_GRAPHIFY, reason="graphify CLI not installed on PATH"),
 ]
 
 
