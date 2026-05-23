@@ -59,6 +59,7 @@ The repo ships these bundled plugins under `plugins/`. All are opt-in — enable
 | `observability/langfuse` | hooks | Trace turns / LLM calls / tools to [Langfuse](https://langfuse.com) |
 | `spotify` | backend (7 tools) | Native Spotify playback, queue, search, playlists, albums, library |
 | `google_meet` | standalone | Join Meet calls, live-caption transcription, optional realtime duplex audio |
+| `graphify` | standalone + dashboard tab | Build/query repository knowledge graphs and explore them visually with interactive node/edge navigation plus a live context-window trace panel |
 | `image_gen/openai` | image backend | OpenAI `gpt-image-2` image generation backend (alternative to FAL) |
 | `image_gen/openai-codex` | image backend | OpenAI image generation via Codex OAuth |
 | `image_gen/xai` | image backend | xAI `grok-2-image` backend |
@@ -199,6 +200,64 @@ The agent kicks off the meeting join, streams the transcription back into its co
 **When to use it:** recurring standups where you want a bot to transcribe + summarize for async attendees; deposition-style interviews where you want structured notes; any case where you'd otherwise need Fireflies / Otter / Grain. When you'd rather not have an AI listening in — don't enable it.
 
 **Disabling:** `aot plugins disable google_meet`. Any cached transcripts and recordings stay in `~/.aot/cache/google_meet/` until you remove them.
+
+### graphify
+
+Adds a native Graphify toolset so the agent can build and query a graph representation of a codebase directly from chat, plus a dashboard tab (`/graphify`) with interactive graph exploration (clickable nodes, zoom/pan, relationship inspection) and a live context-window trace panel.
+
+The plugin executes Graphify from vendored source in this repository (`vendor/graphify`) using an in-process runner. For normal plugin usage, no separate `graphify` binary installation is required.
+
+**What it adds:**
+
+- `graphify_build` — run `extract`, `update`, or `cluster_only`
+- `graphify_query` — ask natural-language questions over the graph
+- `graphify_path` — find shortest paths between entities
+- `graphify_explain` — explain an entity from neighborhood context
+- `graphify_prs` — PR triage/impact helpers
+
+**Prerequisites:**
+
+- vendored Graphify source present in this repo under `vendor/graphify`
+- backend credentials configured for your chosen Graphify semantic backend
+
+**Enable:**
+
+```bash
+aot plugins enable graphify
+```
+
+Or in `~/.aot/config.yaml`:
+
+```yaml
+plugins:
+  enabled:
+    - graphify
+```
+
+**Generate a graph (recommended first run):**
+
+Ask the agent:
+
+> Build a Graphify graph for this repo using `graphify_build` in `extract` mode and skip visualization.
+
+Equivalent tool args:
+
+```json
+{
+  "root_path": "/path/to/repo",
+  "mode": "extract",
+  "no_viz": true
+}
+```
+
+Then ask:
+
+> Query the generated graph for the auth-to-database path.
+
+If you want backend/model overrides, include `backend`, `model`, `token_budget`, and `max_concurrency` in `graphify_build`.
+
+For a full walkthrough, see [Use the Graphify Plugin](/docs/guides/use-graphify-plugin).
+For output location defaults and `GRAPHIFY_OUT` overrides, see [Output directory and configuration](/docs/guides/use-graphify-plugin#output-directory-and-configuration).
 
 ### aot-achievements
 
