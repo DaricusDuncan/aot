@@ -8,6 +8,8 @@ description: "Enable the bundled Graphify plugin and generate/query a repository
 
 The bundled `graphify` plugin adds native tools for building and exploring a repository knowledge graph from Aot chat sessions.
 
+The plugin runs Graphify from vendored source in this repository (`vendor/graphify`) via an in-process runner. You do not need to install a separate `graphify` binary for normal plugin workflows.
+
 ## Prerequisites
 
 - Vendored Graphify source exists under `vendor/graphify` in this repository.
@@ -28,6 +30,8 @@ plugins:
   enabled:
     - graphify
 ```
+
+After enabling, start using it from chat by asking the agent to call `graphify_build`, `graphify_query`, `graphify_path`, `graphify_explain`, or `graphify_prs`.
 
 ## Generate a graph
 
@@ -54,6 +58,25 @@ Optional extraction tuning fields:
 
 On success, Graphify outputs are written under `graphify-out/` in the target repo.
 
+## Output directory and configuration
+
+By default, Graphify writes generated artifacts to:
+
+- `<target-root>/graphify-out/`
+
+Where `<target-root>` is the `root_path` you pass to `graphify_build` (or the current repo root if you run against `.`).
+
+Common output files include:
+
+- `graphify-out/graph.json`
+- `graphify-out/GRAPH_REPORT.md`
+- `graphify-out/graph.html` (when visualization is generated)
+
+To override the output directory name/path, set the `GRAPHIFY_OUT` environment variable before launching Aot. Graphify will then write to:
+
+- `<target-root>/$GRAPHIFY_OUT/` for relative values (for example, `GRAPHIFY_OUT=graphify-out-feature`)
+- the exact absolute path when `GRAPHIFY_OUT` is absolute
+
 ## Query and inspect the graph
 
 After extraction, ask follow-up questions like:
@@ -77,3 +100,4 @@ For PR-focused graph analysis, use:
 - `graphify_not_available`: confirm `vendor/graphify` exists and is readable from your checkout.
 - backend/auth errors during `extract`: verify your Graphify backend credentials and chosen backend/model settings.
 - no output graph files: rerun with `mode: "extract"` first, then use `update` for incremental refreshes.
+- If you use standalone Graphify CLI workflows outside the plugin, install/configure that CLI separately; plugin integration itself uses vendored in-repo Graphify.

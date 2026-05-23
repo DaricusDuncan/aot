@@ -205,6 +205,8 @@ The agent kicks off the meeting join, streams the transcription back into its co
 
 Adds a native Graphify toolset so the agent can build and query a graph representation of a codebase directly from chat, plus a dashboard tab (`/graphify`) with interactive graph exploration (clickable nodes, zoom/pan, relationship inspection) and a live context-window trace panel.
 
+The plugin executes Graphify from vendored source in this repository (`vendor/graphify`) using an in-process runner. For normal plugin usage, no separate `graphify` binary installation is required.
+
 **What it adds:**
 
 - `graphify_build` — run `extract`, `update`, or `cluster_only`
@@ -255,6 +257,7 @@ Then ask:
 If you want backend/model overrides, include `backend`, `model`, `token_budget`, and `max_concurrency` in `graphify_build`.
 
 For a full walkthrough, see [Use the Graphify Plugin](/docs/guides/use-graphify-plugin).
+For output location defaults and `GRAPHIFY_OUT` overrides, see [Output directory and configuration](/docs/guides/use-graphify-plugin#output-directory-and-configuration).
 
 ### aot-achievements
 
