@@ -24,6 +24,30 @@ const websiteDir = resolve(scriptDir, "..");
 const extractScript = join(scriptDir, "extract-skills.py");
 const llmsScript = join(scriptDir, "generate-llms-txt.py");
 const outputFile = join(websiteDir, "src", "data", "skills.json");
+const repoRoot = resolve(websiteDir, "..");
+const candidatePythons = [
+  join(repoRoot, ".venv", "bin", "python"),
+  join(repoRoot, "venv", "bin", "python"),
+  "python3",
+];
+
+function resolvePython() {
+  for (const candidate of candidatePythons) {
+    if (candidate === "python3") {
+      const probe = spawnSync(candidate, ["--version"], { stdio: "ignore" });
+      if (!probe.error && probe.status === 0) {
+        return candidate;
+      }
+      continue;
+    }
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return "python3";
+}
+
+const pythonExec = resolvePython();
 
 function writeEmptyFallback(reason) {
   mkdirSync(dirname(outputFile), { recursive: true });
@@ -39,9 +63,9 @@ function runPython(script, label) {
     console.warn(`[prebuild] ${label} skipped (script missing)`);
     return false;
   }
-  const r = spawnSync("python3", [script], { stdio: "inherit", cwd: websiteDir });
+  const r = spawnSync(pythonExec, [script], { stdio: "inherit", cwd: websiteDir });
   if (r.error && r.error.code === "ENOENT") {
-    console.warn(`[prebuild] ${label} skipped (python3 not found)`);
+    console.warn(`[prebuild] ${label} skipped (${pythonExec} not found)`);
     return false;
   }
   if (r.status !== 0) {
@@ -55,12 +79,12 @@ function runPython(script, label) {
 if (!existsSync(extractScript)) {
   writeEmptyFallback("extract script missing");
 } else {
-  const r = spawnSync("python3", [extractScript], {
+  const r = spawnSync(pythonExec, [extractScript], {
     stdio: "inherit",
     cwd: websiteDir,
   });
   if (r.error && r.error.code === "ENOENT") {
-    writeEmptyFallback("python3 not found");
+    writeEmptyFallback(`${pythonExec} not found`);
   } else if (r.status !== 0) {
     writeEmptyFallback(`extract-skills.py exited with status ${r.status}`);
   }
