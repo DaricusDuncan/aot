@@ -33,7 +33,7 @@ GRAPHIFY_BUILD_SCHEMA = {
                 "type": "string",
                 "description": (
                     "Optional semantic backend for headless extraction "
-                    "(for example: gemini, kimi, claude, openai, deepseek, ollama, bedrock)."
+                    "(for example: gemini, kimi, claude, openai, deepseek, lmstudio, ollama, bedrock)."
                 ),
             },
             "model": {

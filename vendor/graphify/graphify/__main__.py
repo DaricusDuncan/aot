@@ -1256,7 +1256,7 @@ def main() -> None:
         print("    --top-k-edges N         per-symbol outbound edges in inspector (default 12)")
         print("    --label NAME            project label in header")
         print("  extract <path>          headless full extraction (AST + semantic LLM) for CI/scripts")
-        print("    --backend B             gemini|kimi|claude|openai|deepseek|ollama (default: whichever API key is set)")
+        print("    --backend B             gemini|kimi|claude|openai|deepseek|lmstudio|ollama (default: whichever API key is set)")
         print("    --model M               override backend default model")
         print("    --max-workers N         AST extraction subprocess count (default: cpu_count)")
         print("    --token-budget N        per-chunk token cap for semantic extraction (default: 60000)")
@@ -2403,7 +2403,7 @@ def main() -> None:
         # has an API key set.
         if len(sys.argv) < 3:
             print(
-                "Usage: graphify extract <path> [--backend gemini|kimi|claude|openai|deepseek|ollama] "
+                "Usage: graphify extract <path> [--backend gemini|kimi|claude|openai|deepseek|lmstudio|ollama] "
                 "[--model M] [--out DIR] [--google-workspace] [--no-cluster] "
                 "[--max-workers N] [--token-budget N] [--max-concurrency N] "
                 "[--api-timeout S]",
@@ -2539,6 +2539,7 @@ def main() -> None:
                     "error: no LLM API key found. Set GEMINI_API_KEY or GOOGLE_API_KEY "
                     "(gemini), MOONSHOT_API_KEY (kimi), ANTHROPIC_API_KEY (claude), "
                     "OPENAI_API_KEY (openai), DEEPSEEK_API_KEY (deepseek), "
+                    "LMSTUDIO_API_KEY (lmstudio), "
                     "or pass --backend.",
                     file=sys.stderr,
                 )
@@ -2564,6 +2565,20 @@ def main() -> None:
                 )
                 try:
                     host = (urlparse(ollama_url).hostname or "").lower()
+                except Exception:
+                    host = ""
+                allow_no_key = (
+                    host in ("localhost", "127.0.0.1", "::1")
+                    or host.startswith("127.")
+                )
+            elif backend == "lmstudio":
+                from urllib.parse import urlparse
+                lmstudio_url = os.environ.get(
+                    "LMSTUDIO_BASE_URL",
+                    _BACKENDS["lmstudio"].get("base_url", ""),
+                )
+                try:
+                    host = (urlparse(lmstudio_url).hostname or "").lower()
                 except Exception:
                     host = ""
                 allow_no_key = (

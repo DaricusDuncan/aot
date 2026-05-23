@@ -15,6 +15,8 @@ def _clear_backend_env(monkeypatch):
         "MOONSHOT_API_KEY",
         "ANTHROPIC_API_KEY",
         "OPENAI_API_KEY",
+        "LMSTUDIO_API_KEY",
+        "LMSTUDIO_BASE_URL",
     ):
         monkeypatch.delenv(env_key, raising=False)
 
@@ -53,6 +55,13 @@ def test_openai_backend_detected(monkeypatch):
     assert llm._get_backend_api_key("openai") == "openai-key"
 
 
+def test_lmstudio_backend_detected_by_base_url(monkeypatch):
+    _clear_backend_env(monkeypatch)
+    monkeypatch.setenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
+
+    assert llm.detect_backend() == "lmstudio"
+
+
 def test_extract_files_direct_routes_gemini_through_openai_compat(tmp_path, monkeypatch):
     _clear_backend_env(monkeypatch)
     monkeypatch.setenv("GOOGLE_API_KEY", "google-key")
@@ -72,6 +81,23 @@ def test_extract_files_direct_routes_gemini_through_openai_compat(tmp_path, monk
     assert call.call_args.kwargs["temperature"] == 0
     assert call.call_args.kwargs["reasoning_effort"] == "low"
     assert call.call_args.kwargs["max_completion_tokens"] == 16384
+
+
+def test_extract_files_direct_routes_lmstudio_through_openai_compat_without_key(tmp_path, monkeypatch):
+    _clear_backend_env(monkeypatch)
+    monkeypatch.setenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
+    source = tmp_path / "note.md"
+    source.write_text("# Architecture\n\nThe runner emits a snapshot.\n")
+    result = {"nodes": [], "edges": [], "hyperedges": [], "input_tokens": 1, "output_tokens": 1}
+
+    with patch("graphify.llm._call_openai_compat", return_value=result) as call:
+        assert llm.extract_files_direct([source], backend="lmstudio", root=tmp_path) is result
+
+    assert call.call_args.args[:3] == (
+        "http://localhost:1234/v1",
+        "lmstudio",
+        "local-model",
+    )
 
 
 def test_gemini_model_can_be_overridden_by_env(tmp_path, monkeypatch):

@@ -69,6 +69,14 @@ BACKENDS: dict[str, dict] = {
         "temperature": 0,
         "max_tokens": 16384,
     },
+    "lmstudio": {
+        "base_url": os.environ.get("LMSTUDIO_BASE_URL", "http://localhost:1234/v1"),
+        "default_model": os.environ.get("LMSTUDIO_MODEL", "local-model"),
+        "env_key": "LMSTUDIO_API_KEY",
+        "pricing": {"input": 0.0, "output": 0.0},
+        "temperature": 0,
+        "max_tokens": 16384,
+    },
     "gemini": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
         "default_model": "gemini-3-flash-preview",
@@ -266,7 +274,7 @@ def _call_openai_compat(
     except ImportError as exc:
         pkg_hint = "graphifyy[kimi]" if backend == "kimi" else "openai"
         raise ImportError(
-            "Gemini/Kimi/Ollama/OpenAI-compatible extraction requires the openai package. "
+            "Gemini/Kimi/Ollama/LM Studio/OpenAI-compatible extraction requires the openai package. "
             f"Run: pip install {pkg_hint}"
         ) from exc
 
@@ -560,6 +568,18 @@ def extract_files_direct(
             file=sys.stderr,
         )
         key = "ollama"
+    if not key and backend == "lmstudio":
+        # LM Studio local server generally runs without auth, but the OpenAI
+        # client library still expects a non-empty api_key string.
+        lmstudio_url = os.environ.get("LMSTUDIO_BASE_URL", cfg.get("base_url", ""))
+        _validate_lmstudio_base_url(lmstudio_url)
+        print(
+            "[graphify] WARNING: lmstudio backend selected with no LMSTUDIO_API_KEY set; "
+            f"sending corpus to {lmstudio_url}. Set LMSTUDIO_API_KEY (any non-empty value) "
+            "to suppress this warning.",
+            file=sys.stderr,
+        )
+        key = "lmstudio"
     if not key and backend not in ("bedrock", "claude-cli"):
         raise ValueError(
             f"No API key for backend '{backend}'. "
@@ -965,6 +985,10 @@ def _call_llm(prompt: str, *, backend: str, max_tokens: int = 200) -> str:
         ollama_url = os.environ.get("OLLAMA_BASE_URL", cfg.get("base_url", ""))
         _validate_ollama_base_url(ollama_url)
         key = "ollama"
+    if not key and backend == "lmstudio":
+        lmstudio_url = os.environ.get("LMSTUDIO_BASE_URL", cfg.get("base_url", ""))
+        _validate_lmstudio_base_url(lmstudio_url)
+        key = "lmstudio"
     if not key and backend not in ("bedrock", "claude-cli"):
         raise ValueError(
             f"No API key for backend '{backend}'. Set {_format_backend_env_keys(backend)}."
@@ -1053,6 +1077,10 @@ def estimate_cost(backend: str, input_tokens: int, output_tokens: int) -> float:
     return (input_tokens * p["input"] + output_tokens * p["output"]) / 1_000_000
 
 
+def _is_loopback_host(host: str) -> bool:
+    return host in ("localhost", "127.0.0.1", "::1") or host.startswith("127.")
+
+
 def _validate_ollama_base_url(url: str) -> None:
     """Warn (do not raise) if OLLAMA_BASE_URL looks unsafe.
 
@@ -1077,7 +1105,7 @@ def _validate_ollama_base_url(url: str) -> None:
         )
         return
     host = (parsed.hostname or "").lower()
-    is_loopback = host in ("localhost", "127.0.0.1", "::1") or host.startswith("127.")
+    is_loopback = _is_loopback_host(host)
     if not is_loopback:
         scheme_note = " (UNENCRYPTED)" if parsed.scheme == "http" else ""
         print(
@@ -1087,11 +1115,41 @@ def _validate_ollama_base_url(url: str) -> None:
             file=sys.stderr,
         )
 
+def _validate_lmstudio_base_url(url: str) -> None:
+    """Warn (do not raise) if LMSTUDIO_BASE_URL looks unsafe."""
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+    except Exception:
+        print(
+            f"[graphify] WARNING: LMSTUDIO_BASE_URL={url!r} is not a parseable URL.",
+            file=sys.stderr,
+        )
+        return
+    if parsed.scheme not in ("http", "https"):
+        print(
+            f"[graphify] WARNING: LMSTUDIO_BASE_URL has unexpected scheme {parsed.scheme!r}; "
+            "expected http or https.",
+            file=sys.stderr,
+        )
+        return
+    host = (parsed.hostname or "").lower()
+    is_loopback = _is_loopback_host(host)
+    if not is_loopback:
+        scheme_note = " (UNENCRYPTED)" if parsed.scheme == "http" else ""
+        print(
+            f"[graphify] WARNING: LMSTUDIO_BASE_URL points to non-loopback host {host!r}{scheme_note}. "
+            "Your full corpus will be sent to that endpoint. "
+            "Set LMSTUDIO_BASE_URL=http://localhost:1234/v1 to keep extraction local.",
+            file=sys.stderr,
+        )
+
+
 
 def detect_backend() -> str | None:
     """Return the name of whichever backend has an API key set, or None.
 
-    Priority: gemini → kimi → claude → openai → bedrock → ollama (last, opt-in).
+    Priority: gemini → kimi → claude → openai → deepseek → lmstudio → bedrock → ollama (local opt-in).
 
     Ollama is intentionally checked LAST so a paid API key (Anthropic/OpenAI/etc.)
     is never silently shadowed by an incidental OLLAMA_BASE_URL in the environment
@@ -1102,6 +1160,10 @@ def detect_backend() -> str | None:
     for backend in ("gemini", "kimi", "claude", "openai", "deepseek"):
         if _get_backend_api_key(backend):
             return backend
+    lmstudio_url = os.environ.get("LMSTUDIO_BASE_URL")
+    if lmstudio_url:
+        _validate_lmstudio_base_url(lmstudio_url)
+        return "lmstudio"
     if os.environ.get("AWS_PROFILE") or os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION"):
         return "bedrock"
     ollama_url = os.environ.get("OLLAMA_BASE_URL")
